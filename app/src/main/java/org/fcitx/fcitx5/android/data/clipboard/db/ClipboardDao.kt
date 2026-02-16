@@ -41,6 +41,9 @@ interface ClipboardDao {
     @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE deleted=0 ORDER BY pinned DESC, timestamp DESC")
     fun allEntries(): PagingSource<Int, ClipboardEntry>
 
+    @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE deleted=0 AND text LIKE '%' || :query || '%' ORDER BY pinned DESC, timestamp DESC")
+    fun searchEntries(query: String): PagingSource<Int, ClipboardEntry>
+
     @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE text=:text AND sensitive=:sensitive AND deleted=0 LIMIT 1")
     suspend fun find(text: String, sensitive: Boolean = false): ClipboardEntry?
 
@@ -61,4 +64,13 @@ interface ClipboardDao {
 
     @Query("DELETE FROM ${ClipboardEntry.TABLE_NAME} WHERE deleted=1")
     suspend fun realDelete()
+
+    @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE cachedMediaPath=:path AND deleted=0 LIMIT 1")
+    suspend fun findByMediaPath(path: String): ClipboardEntry?
+
+    @Query("SELECT cachedMediaPath FROM ${ClipboardEntry.TABLE_NAME} WHERE cachedMediaPath IS NOT NULL AND deleted=0")
+    suspend fun getAllMediaPaths(): List<String>
+
+    @Query("SELECT cachedMediaPath FROM ${ClipboardEntry.TABLE_NAME} WHERE cachedMediaPath IS NOT NULL AND deleted=1")
+    suspend fun getDeletedMediaPaths(): List<String>
 }

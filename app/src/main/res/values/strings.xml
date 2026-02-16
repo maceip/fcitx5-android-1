@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Fcitx5</string>
-    <string name="app_name_debug">Fcitx5 (Debug)</string>
+    <string name="app_name_release">Zugriff</string>
+    <string name="app_name_debug">Zugriff (Debug)</string>
     <string name="save">Save</string>
     <string name="input_methods">Input Methods</string>
     <string name="add_input_method">Add Input Method</string>
@@ -61,6 +61,17 @@
     <string name="unpin">Unpin</string>
     <string name="delete">Delete</string>
     <string name="clipboard">Clipboard</string>
+    <string name="translate">Translate</string>
+    <string name="translate_source_hint">Type text to translate…</string>
+    <string name="translate_send">Send</string>
+    <string name="translate_swap">Swap languages</string>
+    <string name="translate_action">Translate</string>
+    <string name="translate_pick_language">Select language</string>
+    <string name="translate_downloading_model">Downloading language model...</string>
+    <string name="translate_error">Translation error</string>
+    <string name="clipboard_search_hint">Search clipboard…</string>
+    <string name="translate_source_language">Source language</string>
+    <string name="translate_target_language">Target language</string>
     <string name="keyboard_height">Keyboard height</string>
     <string name="virtual_keyboard">Virtual Keyboard</string>
     <string name="clipboard_suggestion_timeout">Clipboard suggestion timeout</string>

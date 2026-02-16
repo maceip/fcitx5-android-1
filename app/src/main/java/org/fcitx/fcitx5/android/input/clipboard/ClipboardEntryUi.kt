@@ -6,17 +6,20 @@ package org.fcitx.fcitx5.android.input.clipboard
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.text.TextUtils
 import android.view.View
+import android.widget.ImageView
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
 import splitties.dimensions.dp
 import splitties.resources.drawable
 import splitties.views.dsl.constraintlayout.bottomOfParent
+import splitties.views.dsl.constraintlayout.centerHorizontally
 import splitties.views.dsl.constraintlayout.centerVertically
 import splitties.views.dsl.constraintlayout.constraintLayout
 import splitties.views.dsl.constraintlayout.endOfParent
@@ -42,6 +45,11 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
         setTextColor(theme.keyTextColor)
     }
 
+    val thumbnailView = imageView {
+        scaleType = ImageView.ScaleType.CENTER_CROP
+        visibility = View.GONE
+    }
+
     val pin = imageView {
         imageDrawable = drawable(R.drawable.ic_baseline_push_pin_24)!!.apply {
             setTint(theme.altKeyTextColor)
@@ -52,6 +60,9 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
     val layout = constraintLayout {
         add(textView, lParams(matchParent, wrapContent) {
             centerVertically()
+        })
+        add(thumbnailView, lParams(matchParent, dp(80)) {
+            centerHorizontally()
         })
         add(pin, lParams(dp(12), dp(12)) {
             bottomOfParent(dp(2))
@@ -76,8 +87,24 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
         add(layout, lParams(matchParent, matchParent))
     }
 
-    fun setEntry(text: String, pinned: Boolean) {
-        textView.text = text
+    fun setEntry(text: String, pinned: Boolean, mediaPath: String? = null) {
+        if (mediaPath != null) {
+            textView.visibility = View.GONE
+            thumbnailView.visibility = View.VISIBLE
+            try {
+                val bitmap = BitmapFactory.decodeFile(mediaPath)
+                thumbnailView.setImageBitmap(bitmap)
+            } catch (_: Exception) {
+                thumbnailView.visibility = View.GONE
+                textView.visibility = View.VISIBLE
+                textView.text = text
+            }
+        } else {
+            thumbnailView.visibility = View.GONE
+            thumbnailView.setImageBitmap(null)
+            textView.visibility = View.VISIBLE
+            textView.text = text
+        }
         pin.visibility = if (pinned) View.VISIBLE else View.GONE
     }
 }

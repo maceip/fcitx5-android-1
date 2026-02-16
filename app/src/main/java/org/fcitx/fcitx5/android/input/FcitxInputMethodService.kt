@@ -439,6 +439,41 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
     }
 
+    fun commitMedia(entry: org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry) {
+        val ic = currentInputConnection ?: return
+        val mediaPath = entry.cachedMediaPath ?: return
+        val file = java.io.File(mediaPath)
+        if (!file.exists()) {
+            // Fallback to text
+            if (entry.text.isNotBlank()) commitText(entry.text)
+            return
+        }
+        try {
+            val authority = "$packageName.clipboard.fileprovider"
+            val contentUri = androidx.core.content.FileProvider.getUriForFile(this, authority, file)
+            val mimeType = entry.type.ifBlank { "image/*" }
+            val description = android.content.ClipDescription(entry.text.ifBlank { "image" }, arrayOf(mimeType))
+            val inputContentInfo = androidx.core.view.inputmethod.InputContentInfoCompat(
+                contentUri, description, null
+            )
+            val flags = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N_MR1) {
+                androidx.core.view.inputmethod.InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION
+            } else {
+                0
+            }
+            val result = androidx.core.view.inputmethod.InputConnectionCompat.commitContent(
+                ic, currentInputEditorInfo, inputContentInfo, flags, null
+            )
+            if (!result && entry.text.isNotBlank()) {
+                // Editor doesn't support media, fallback to text
+                commitText(entry.text)
+            }
+        } catch (e: Exception) {
+            timber.log.Timber.w(e, "Failed to commit media")
+            if (entry.text.isNotBlank()) commitText(entry.text)
+        }
+    }
+
     private fun sendDownKeyEvent(eventTime: Long, keyEventCode: Int, metaState: Int = 0) {
         currentInputConnection?.sendKeyEvent(
             KeyEvent(

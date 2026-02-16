@@ -91,7 +91,11 @@ abstract class ClipboardAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val entry = getItem(position) ?: return
         with(holder.entryUi) {
-            setEntry(excerptText(entry.text, entry.sensitive && maskSensitive), entry.pinned)
+            setEntry(
+                excerptText(entry.text, entry.sensitive && maskSensitive),
+                entry.pinned,
+                entry.cachedMediaPath
+            )
             root.setOnClickListener {
                 onPaste(entry)
             }

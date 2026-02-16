@@ -25,7 +25,9 @@ data class ClipboardEntry(
     @ColumnInfo(defaultValue = "0")
     val deleted: Boolean = false,
     @ColumnInfo(defaultValue = "0")
-    val sensitive: Boolean = false
+    val sensitive: Boolean = false,
+    @ColumnInfo(defaultValue = "NULL")
+    val cachedMediaPath: String? = null
 ) {
     companion object {
         const val BULLET = "•"
@@ -38,6 +40,8 @@ data class ClipboardEntry(
             "android.content.extra.IS_SENSITIVE"
         }
 
+        private val IMAGE_MIME_PREFIXES = listOf("image/")
+
         fun fromClipData(
             clipData: ClipData,
             transformer: ((String) -> String)? = null
@@ -45,16 +49,20 @@ data class ClipboardEntry(
             val desc = clipData.description
             // TODO: handle multiple items (when does this happen?)
             val item = clipData.getItemAt(0) ?: return null
-            val str = item.text?.toString() ?: return null
+            val mimeType = desc.getMimeType(0)
             val sensitive = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 desc.extras?.getBoolean(IS_SENSITIVE) ?: false
             } else {
                 false
             }
+            // Check for media URI (image)
+            val uri = item.uri
+            val isImage = uri != null && IMAGE_MIME_PREFIXES.any { mimeType.startsWith(it) }
+            val str = item.text?.toString() ?: if (isImage) "" else return null
             return ClipboardEntry(
-                text = if (transformer != null) transformer(str) else str,
+                text = if (transformer != null && str.isNotEmpty()) transformer(str) else str,
                 timestamp = clipData.timestamp(),
-                type = desc.getMimeType(0),
+                type = mimeType,
                 sensitive = sensitive
             )
         }

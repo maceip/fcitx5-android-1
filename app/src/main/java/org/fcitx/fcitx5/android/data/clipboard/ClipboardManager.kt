@@ -95,7 +95,23 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
         enabledPref.registerOnChangeListener(enabledListener)
         limitListener.onChange(limitPref.key, limitPref.getValue())
         limitPref.registerOnChangeListener(limitListener)
-        launch { updateItemCount() }
+        ClipboardMediaCache.init(context)
+        launch {
+            updateItemCount()
+            cleanOrphanedMedia()
+        }
+    }
+
+    private suspend fun cleanOrphanedMedia() {
+        try {
+            val validPaths = clbDao.getAllMediaPaths().toSet()
+            ClipboardMediaCache.cleanOrphans(validPaths)
+            // Delete media files for deleted entries
+            val deletedPaths = clbDao.getDeletedMediaPaths()
+            deletedPaths.forEach { ClipboardMediaCache.deleteFile(it) }
+        } catch (e: Exception) {
+            Timber.w("Failed to clean orphaned media: $e")
+        }
     }
 
     suspend fun get(id: Int) = clbDao.get(id)
@@ -103,6 +119,8 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     suspend fun haveUnpinned() = clbDao.haveUnpinned()
 
     fun allEntries() = clbDao.allEntries()
+
+    fun searchEntries(query: String) = clbDao.searchEntries(query)
 
     suspend fun pin(id: Int) = clbDao.updatePinStatus(id, true)
 
@@ -137,6 +155,13 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     }
 
     suspend fun realDelete() {
+        // Clean up media files before deleting entries
+        try {
+            val deletedPaths = clbDao.getDeletedMediaPaths()
+            deletedPaths.forEach { ClipboardMediaCache.deleteFile(it) }
+        } catch (e: Exception) {
+            Timber.w("Failed to cleanup media on delete: $e")
+        }
         clbDao.realDelete()
     }
 
@@ -170,24 +195,37 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
         launch {
             mutex.withLock {
                 val entry = ClipboardEntry.fromClipData(clip, transformer) ?: return@withLock
-                if (entry.text.isBlank()) return@withLock
+                val hasMedia = entry.type.startsWith("image/")
+                if (entry.text.isBlank() && !hasMedia) return@withLock
+                // Cache media if present
+                val mediaPath = if (hasMedia) {
+                    val item = clip.getItemAt(0)
+                    item?.uri?.let { uri ->
+                        ClipboardMediaCache.cacheMedia(appContext, uri)
+                    }
+                } else null
+                val entryWithMedia = if (mediaPath != null) {
+                    entry.copy(cachedMediaPath = mediaPath)
+                } else entry
                 try {
-                    clbDao.find(entry.text, entry.sensitive)?.let {
-                        updateLastEntry(it.copy(timestamp = entry.timestamp))
-                        clbDao.updateTime(it.id, entry.timestamp)
-                        return@withLock
+                    if (entryWithMedia.text.isNotBlank()) {
+                        clbDao.find(entryWithMedia.text, entryWithMedia.sensitive)?.let {
+                            updateLastEntry(it.copy(timestamp = entryWithMedia.timestamp))
+                            clbDao.updateTime(it.id, entryWithMedia.timestamp)
+                            return@withLock
+                        }
                     }
                     val insertedEntry = clbDb.withTransaction {
-                        val rowId = clbDao.insert(entry)
+                        val rowId = clbDao.insert(entryWithMedia)
                         removeOutdated()
                         // new entry can be deleted immediately if clipboard limit == 0
-                        clbDao.get(rowId) ?: entry
+                        clbDao.get(rowId) ?: entryWithMedia
                     }
                     updateLastEntry(insertedEntry)
                     updateItemCount()
                 } catch (exception: Exception) {
                     Timber.w("Failed to update clipboard database: $exception")
-                    updateLastEntry(entry)
+                    updateLastEntry(entryWithMedia)
                 }
             }
         }

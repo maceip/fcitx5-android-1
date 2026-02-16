@@ -135,11 +135,6 @@ sealed class SettingsRoute : Parcelable {
     }
 
     @Serializable
-    data class PinyinDict(val uri: String? = null) : SettingsRoute() {
-        constructor(uri: Uri) : this(uri.toString())
-    }
-
-    @Serializable
     data class Punctuation(val title: String, val lang: String? = null) : SettingsRoute()
 
     @Serializable
@@ -173,12 +168,6 @@ sealed class SettingsRoute : Parcelable {
             }
         }
     }
-
-    @Serializable
-    data object TableInputMethods : SettingsRoute()
-
-    @Serializable
-    data object PinyinCustomPhrase : SettingsRoute()
 
     companion object {
         fun createGraph(controller: NavController) = controller.createGraph(Index) {
@@ -240,9 +229,6 @@ sealed class SettingsRoute : Parcelable {
             fragment<ListFragment, ListConfig>(
                 typeMap = mapOf(typeOf<ListConfig.Params>() to ListConfig.Params.NavType)
             )
-            fragment<PinyinDictionaryFragment, PinyinDict> {
-                label = ctx.getString(R.string.pinyin_dict)
-            }
             fragment<PunctuationEditorFragment, Punctuation>()
             fragment<QuickPhraseListFragment, QuickPhraseList> {
                 label = ctx.getString(R.string.quickphrase_editor)
@@ -250,10 +236,6 @@ sealed class SettingsRoute : Parcelable {
             fragment<QuickPhraseEditFragment, QuickPhraseEdit>(
                 typeMap = mapOf(typeOf<QuickPhraseEdit.Param>() to QuickPhraseEdit.Param.NavType)
             )
-            fragment<TableInputMethodFragment, TableInputMethods> {
-                label = ctx.getString(R.string.table_im)
-            }
-            fragment<PinyinCustomPhraseFragment, PinyinCustomPhrase>()
         }
     }
 }

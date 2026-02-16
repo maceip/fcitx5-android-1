@@ -70,14 +70,8 @@ kotlin {
 fcitxComponent {
     includeLibs = listOf(
         "fcitx5",
-        "fcitx5-lua",
-        "libime",
-        "fcitx5-chinese-addons"
+        "fcitx5-lua"
     )
-    // exclude (delete immediately after install) tables that nobody would use
-    excludeFiles = listOf("cangjie", "erbi", "qxm", "wanfeng").map {
-        "usr/share/fcitx5/inputmethod/$it.conf"
-    }
     installPrebuiltAssets = true
 }
 
@@ -89,8 +83,6 @@ dependencies {
     ksp(project(":codegen"))
     implementation(project(":lib:fcitx5"))
     implementation(project(":lib:fcitx5-lua"))
-    implementation(project(":lib:libime"))
-    implementation(project(":lib:fcitx5-chinese-addons"))
     implementation(project(":lib:common"))
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.serialization.json)
@@ -133,7 +125,9 @@ dependencies {
     implementation(libs.splitties.views.dsl.recyclerview)
     implementation(libs.splitties.views.recyclerview)
     implementation(libs.aboutlibraries.core)
+    implementation(libs.mlkit.translate)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.lifecycle.testing)

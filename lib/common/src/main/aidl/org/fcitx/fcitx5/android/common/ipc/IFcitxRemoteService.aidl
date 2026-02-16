@@ -18,8 +18,6 @@ interface IFcitxRemoteService {
    /** Unregister a clipboard transformer to fcitx app */
    void unregisterClipboardEntryTransformer(IClipboardEntryTransformer transformer);
 
-   /** Reload fcitx pinyin dictionary */
-   void reloadPinyinDict();
    /** Reload fcitx quick phrase */
    void reloadQuickPhrase();
 }

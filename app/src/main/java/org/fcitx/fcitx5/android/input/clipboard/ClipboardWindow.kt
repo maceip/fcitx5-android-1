@@ -6,6 +6,8 @@ package org.fcitx.fcitx5.android.input.clipboard
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -81,9 +83,7 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
 
     private val clipboardEntryRadius by ThemeManager.prefs.clipboardEntryRadius
 
-    private val clipboardEntriesPager by lazy {
-        Pager(PagingConfig(pageSize = 16)) { ClipboardManager.allEntries() }
-    }
+    private var currentSearchQuery: String = ""
     private var adapterSubmitJob: Job? = null
 
     private val adapter: ClipboardAdapter by lazy {
@@ -123,7 +123,11 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
             }
 
             override fun onPaste(entry: ClipboardEntry) {
-                service.commitText(entry.text)
+                if (entry.cachedMediaPath != null) {
+                    service.commitMedia(entry)
+                } else {
+                    service.commitText(entry.text)
+                }
                 if (clipboardReturnAfterPaste) windowManager.attachWindow(KeyboardWindow)
             }
         }
@@ -167,6 +171,46 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
                     promptDeleteAll(ClipboardManager.haveUnpinned())
                 }
             }
+            searchButton.setOnClickListener {
+                toggleSearch()
+            }
+            searchBar.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    val query = s?.toString()?.trim() ?: ""
+                    if (query != currentSearchQuery) {
+                        currentSearchQuery = query
+                        resubmitPager()
+                    }
+                }
+            })
+        }
+    }
+
+    private fun toggleSearch() {
+        val bar = ui.searchBar
+        if (bar.visibility == View.VISIBLE) {
+            bar.visibility = View.GONE
+            bar.text.clear()
+            currentSearchQuery = ""
+            resubmitPager()
+        } else {
+            bar.visibility = View.VISIBLE
+            bar.requestFocus()
+        }
+    }
+
+    private fun resubmitPager() {
+        adapterSubmitJob?.cancel()
+        val query = currentSearchQuery
+        val pager = if (query.isBlank()) {
+            Pager(PagingConfig(pageSize = 16)) { ClipboardManager.allEntries() }
+        } else {
+            Pager(PagingConfig(pageSize = 16)) { ClipboardManager.searchEntries(query) }
+        }
+        adapterSubmitJob = service.lifecycleScope.launch {
+            pager.flow.collect { adapter.submitData(it) }
         }
     }
 
@@ -267,11 +311,7 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
             val empty = it.append.endOfPaginationReached && adapter.itemCount < 1
             stateMachine.push(ClipboardDbUpdated, ClipboardDbEmpty to empty)
         }
-        adapterSubmitJob = service.lifecycleScope.launch {
-            clipboardEntriesPager.flow.collect {
-                adapter.submitData(it)
-            }
-        }
+        resubmitPager()
         clipboardEnabledPref.registerOnChangeListener(clipboardEnabledListener)
     }
 
@@ -281,6 +321,9 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
         adapterSubmitJob?.cancel()
         promptMenu?.dismiss()
         snackbarInstance?.dismiss()
+        ui.searchBar.visibility = View.GONE
+        ui.searchBar.text.clear()
+        currentSearchQuery = ""
     }
 
     override val title: String by lazy {

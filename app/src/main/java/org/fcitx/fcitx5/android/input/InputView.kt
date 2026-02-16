@@ -38,6 +38,7 @@ import org.fcitx.fcitx5.android.input.picker.emoticonPicker
 import org.fcitx.fcitx5.android.input.picker.symbolPicker
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
 import org.fcitx.fcitx5.android.input.preedit.PreeditComponent
+import org.fcitx.fcitx5.android.input.translate.TranslateBarComponent
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.unset
 import org.mechdancer.dependency.DynamicScope
@@ -100,6 +101,7 @@ class InputView(
     private val returnKeyDrawable = ReturnKeyDrawableComponent()
     private val preeditEmptyState = PreeditEmptyStateComponent()
     private val preedit = PreeditComponent()
+    private val translateBar = TranslateBarComponent()
     private val commonKeyActionListener = CommonKeyActionListener()
     private val windowManager = InputWindowManager()
     private val kawaiiBar = KawaiiBarComponent()
@@ -121,6 +123,7 @@ class InputView(
         scope += returnKeyDrawable
         scope += preeditEmptyState
         scope += preedit
+        scope += translateBar
         scope += commonKeyActionListener
         scope += windowManager
         scope += kawaiiBar
@@ -245,6 +248,10 @@ class InputView(
         updateKeyboardSize()
 
         add(preedit.ui.root, lParams(matchParent, wrapContent) {
+            above(translateBar.ui.root)
+            centerHorizontally()
+        })
+        add(translateBar.ui.root, lParams(matchParent, wrapContent) {
             above(keyboardView)
             centerHorizontally()
         })
@@ -295,6 +302,7 @@ class InputView(
             }
         }
         preedit.ui.root.setPadding(sidePadding, 0, sidePadding, 0)
+        translateBar.ui.root.setPadding(sidePadding, 0, sidePadding, 0)
         kawaiiBar.view.setPadding(sidePadding, 0, sidePadding, 0)
     }
 

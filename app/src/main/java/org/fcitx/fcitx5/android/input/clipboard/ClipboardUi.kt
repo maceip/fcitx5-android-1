@@ -5,7 +5,9 @@
 package org.fcitx.fcitx5.android.input.clipboard
 
 import android.content.Context
+import android.text.InputType
 import android.view.View
+import android.widget.EditText
 import android.widget.ViewAnimator
 import androidx.transition.Fade
 import androidx.transition.TransitionManager
@@ -23,11 +25,28 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.horizontalLayout
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
+import splitties.views.dsl.core.verticalLayout
 import splitties.views.dsl.core.view
+import splitties.views.dsl.core.wrapContent
 import splitties.views.dsl.recyclerview.recyclerView
+import splitties.views.padding
 import timber.log.Timber
 
 class ClipboardUi(override val ctx: Context, private val theme: Theme) : Ui {
+
+    val searchBar = EditText(ctx).apply {
+        hint = ctx.getString(R.string.clipboard_search_hint)
+        setHintTextColor(theme.altKeyTextColor)
+        setTextColor(theme.keyTextColor)
+        setBackgroundColor(theme.clipboardEntryColor)
+        textSize = 13f
+        inputType = InputType.TYPE_CLASS_TEXT
+        isSingleLine = true
+        padding = ctx.dp(6)
+        visibility = View.GONE
+        isFocusable = true
+        isFocusableInTouchMode = true
+    }
 
     val recyclerView = recyclerView {
         addItemDecoration(SpacesItemDecoration(dp(4)))
@@ -46,18 +65,28 @@ class ClipboardUi(override val ctx: Context, private val theme: Theme) : Ui {
     private val keyBorder by ThemeManager.prefs.keyBorder
     private val disableAnimation by AppPrefs.getInstance().advanced.disableAnimation
 
+    private val contentLayout = verticalLayout {
+        add(searchBar, lParams(matchParent, wrapContent) {
+            bottomMargin = ctx.dp(2)
+        })
+        add(viewAnimator, lParams(matchParent, 0) { weight = 1f })
+    }
+
     override val root = coordinatorLayout {
         if (!keyBorder) {
             backgroundColor = theme.barColor
         }
-        add(viewAnimator, defaultLParams(matchParent, matchParent))
+        add(contentLayout, defaultLParams(matchParent, matchParent))
     }
+
+    val searchButton = ToolButton(ctx, R.drawable.ic_baseline_search_24, theme)
 
     val deleteAllButton = ToolButton(ctx, R.drawable.ic_baseline_delete_sweep_24, theme).apply {
         contentDescription = ctx.getString(R.string.delete_all)
     }
 
     val extension = horizontalLayout {
+        add(searchButton, lParams(dp(40), dp(40)))
         add(deleteAllButton, lParams(dp(40), dp(40)))
     }
 

@@ -44,6 +44,10 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         contentDescription = ctx.getString(R.string.clipboard)
     }
 
+    val translateButton = toolButton(R.drawable.ic_translate_24).apply {
+        contentDescription = ctx.getString(R.string.translate)
+    }
+
     val moreButton = toolButton(R.drawable.ic_baseline_more_horiz_24).apply {
         contentDescription = ctx.getString(R.string.status_area)
     }
