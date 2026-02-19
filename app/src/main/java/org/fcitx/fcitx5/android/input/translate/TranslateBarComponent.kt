@@ -99,11 +99,13 @@ class TranslateBarComponent : UniqueComponent<TranslateBarComponent>(), Dependen
         ui.sourceLangButton.text = sourceLang.uppercase()
         ui.targetLangButton.text = targetLang.uppercase()
         ui.root.visibility = View.VISIBLE
+        ui.root.requestLayout()
     }
 
     fun hide() {
         translateJob?.cancel()
         ui.root.visibility = View.GONE
+        ui.root.requestLayout()
     }
 
     private fun showLanguagePicker(currentCode: String, onSelected: (Language) -> Unit) {

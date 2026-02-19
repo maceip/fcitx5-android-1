@@ -43,10 +43,12 @@ object InputFeedbacks {
     private val soundOnKeyPressVolume by keyboardPrefs.soundOnKeyPressVolume
     private val hapticOnKeyPress by keyboardPrefs.hapticOnKeyPress
     private val hapticOnKeyUp by keyboardPrefs.hapticOnKeyUp
+    private val hapticStyle by keyboardPrefs.hapticStyle
     private val buttonPressVibrationMilliseconds by keyboardPrefs.buttonPressVibrationMilliseconds
     private val buttonLongPressVibrationMilliseconds by keyboardPrefs.buttonLongPressVibrationMilliseconds
     private val buttonPressVibrationAmplitude by keyboardPrefs.buttonPressVibrationAmplitude
     private val buttonLongPressVibrationAmplitude by keyboardPrefs.buttonLongPressVibrationAmplitude
+    private val fineTuneHaptics by keyboardPrefs.fineTuneHaptics
 
     private val vibrator = appContext.vibrator
 
@@ -60,6 +62,22 @@ object InputFeedbacks {
             InputFeedbackMode.FollowingSystem -> if (!systemHapticFeedback) return
         }
         if (keyUp && !hapticOnKeyUp) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !fineTuneHaptics) {
+            // Android 12+ Rich Haptics
+            val effect = when {
+                keyUp -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                longPress -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+                else -> when (hapticStyle) {
+                    AppPrefs.HapticStyle.Soft -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                    AppPrefs.HapticStyle.Sharp -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+                    AppPrefs.HapticStyle.Bold -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+                }
+            }
+            vibrator.vibrate(effect)
+            return
+        }
+
         val duration: Long
         val amplitude: Int
         val hfc: Int
@@ -77,12 +95,8 @@ object InputFeedbacks {
             }
         }
 
-        // there is `VibrationEffect.DEFAULT_AMPLITUDE` but no default duration;
-        // also `VibrationEffect.createOneShot()` only accepts positive duration.
-        // so changing amplitude without changing duration makes no sense
+        // fallback to legacy vibrations
         if (duration != 0L) {
-            // on Android 13, if system haptic feedback was disabled, `vibrator.vibrate()` won't work
-            // but `view.performHapticFeedback()` with `FLAG_IGNORE_GLOBAL_SETTING` still works
             if (hasAmplitudeControl && amplitude != 0) {
                 vibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude))
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -95,12 +109,48 @@ object InputFeedbacks {
         } else {
             var flags = HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
             if (hapticOnKeyPress == InputFeedbackMode.Enabled) {
-                // it says "Starting TIRAMISU only privileged apps can ignore user settings for touch feedback"
-                // but we still seem to be able to use `FLAG_IGNORE_GLOBAL_SETTING`
                 @Suppress("DEPRECATION")
                 flags = flags or HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
             }
             view.performHapticFeedback(hfc, flags)
+        }
+    }
+
+    /**
+     * Unique, subtle haptic for live ASR word recognition
+     */
+    fun hapticASR() {
+        if (hapticOnKeyPress == InputFeedbackMode.Disabled) return
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // A sharp "pop" for each recognized word
+            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(10, 100))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(10)
+        }
+    }
+
+    /**
+     * Memorable haptic for ASR final commit / completion
+     */
+    fun hapticASRCompletion() {
+        if (hapticOnKeyPress == InputFeedbackMode.Disabled) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Success pattern: Click then subtle echo
+            vibrator.vibrate(
+                VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f, 100)
+                    .compose()
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
+        } else {
+            hapticASR()
         }
     }
 

@@ -57,6 +57,7 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
     private var longPressTriggered = false
     var longPressEnabled = false
     private var longPressJob: Job? = null
+    var swipeAfterLongPress = false
 
     @Volatile
     var longPressFeedbackEnabled = true
@@ -180,7 +181,7 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
             }
             MotionEvent.ACTION_UP -> {
                 isPressed = false
-                InputFeedbacks.hapticFeedback(this, longPress = true, keyUp = true)
+                InputFeedbacks.hapticFeedback(this, keyUp = true)
                 dispatchGestureEvent(GestureType.Up, event.x, event.y)
                 val shouldPerformClick = !(touchMovedOutside ||
                         longPressTriggered ||
@@ -218,11 +219,11 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
                         repeatJob?.cancel()
                         repeatJob = null
                     }
-                    if (repeatStarted || !swipeEnabled) {
+                    if ((repeatStarted || !swipeAfterLongPress) || !swipeEnabled) {
                         isPressed = false
                     }
                 }
-                if (!swipeEnabled || longPressTriggered || repeatStarted) return true
+                if (!swipeEnabled || (longPressTriggered && !swipeAfterLongPress) || repeatStarted) return true
                 val countX = consumeSwipe(x, SwipeAxis.X)
                 val countY = consumeSwipe(y, SwipeAxis.Y)
                 dispatchGestureEvent(GestureType.Move, x, y, countX, countY)

@@ -12,6 +12,10 @@ import splitties.views.bottomPadding
 
 fun RecyclerView.applyNavBarInsetsBottomPadding() {
     clipToPadding = false
+    (this as android.view.View).applyNavBarInsetsBottomPadding()
+}
+
+fun android.view.View.applyNavBarInsetsBottomPadding() {
     ViewCompat.setOnApplyWindowInsetsListener(this) { _, windowInsets ->
         windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()).also {
             bottomPadding = it.bottom

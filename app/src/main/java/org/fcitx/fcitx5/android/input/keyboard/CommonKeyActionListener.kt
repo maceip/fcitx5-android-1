@@ -180,6 +180,7 @@ class CommonKeyActionListener :
                             toggleIme()
                         }
                         SpaceLongPressBehavior.ShowPicker -> showInputMethodPicker()
+                        SpaceLongPressBehavior.Trackpad -> {}
                     }
                 }
                 else -> {}

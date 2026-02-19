@@ -3,6 +3,8 @@
  * SPDX-FileCopyrightText: Copyright 2021-2025 Fcitx5 for Android Contributors
  */
 package org.fcitx.fcitx5.android.input.picker
+ 
+import org.fcitx.fcitx5.android.R
 
 import android.annotation.SuppressLint
 import androidx.core.content.ContextCompat
@@ -116,7 +118,16 @@ class PickerWindow(
         tabsUi.apply {
             setTabs(pickerPagesAdapter.getCategoryList())
             setOnTabClickListener { i ->
-                pager.setCurrentItem(pickerPagesAdapter.getRangeOfCategoryIndex(i).first, false)
+                val category = pickerPagesAdapter.getCategoryList()[i]
+                if (category.icon == R.drawable.ic_baseline_photo_library_24) {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_PICK).apply {
+                        type = "image/*"
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                } else {
+                    pager.setCurrentItem(pickerPagesAdapter.getRangeOfCategoryIndex(i).first, false)
+                }
             }
         }
         pager.apply {

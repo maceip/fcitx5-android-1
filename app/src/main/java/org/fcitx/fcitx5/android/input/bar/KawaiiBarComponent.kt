@@ -61,8 +61,10 @@ import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardWindow
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
+import org.fcitx.fcitx5.android.input.prediction.PredictionComponent
 import org.fcitx.fcitx5.android.input.status.StatusAreaWindow
 import org.fcitx.fcitx5.android.input.translate.TranslateBarComponent
+import org.fcitx.fcitx5.android.input.voice.VoiceInputComponent
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.AppUtil
@@ -91,6 +93,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private val commonKeyActionListener: CommonKeyActionListener by manager.must()
     private val popup: PopupComponent by manager.must()
     private val translateBar: TranslateBarComponent by manager.must()
+    private val voiceInput: VoiceInputComponent by manager.must()
+    private val prediction: PredictionComponent by manager.must()
 
     private val prefs = AppPrefs.getInstance()
 
@@ -109,6 +113,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private var isCapabilityFlagsPassword: Boolean = false
     private var isKeyboardLayoutNumber: Boolean = false
     private var isToolbarManuallyToggled: Boolean = false
+    private var isPredictionPresent: Boolean = false
 
     @Keep
     private val onClipboardUpdateListener =
@@ -169,6 +174,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         val newState = when {
             isClipboardFresh -> IdleUi.State.Clipboard
             isInlineSuggestionPresent -> IdleUi.State.InlineSuggestion
+            isPredictionPresent -> IdleUi.State.Prediction
             isCapabilityFlagsPassword && !isKeyboardLayoutNumber -> IdleUi.State.NumberRow
             /**
              * state matrix:
@@ -198,8 +204,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private var voiceInputSubtype: Pair<String, InputMethodSubtype>? = null
 
     private val switchToVoiceInputCallback = View.OnClickListener {
-        val (id, subtype) = voiceInputSubtype ?: return@OnClickListener
-        InputMethodUtil.switchInputMethod(service, id, subtype)
+        voiceInput.startListening()
     }
 
     private val idleUi: IdleUi by lazy {
@@ -266,6 +271,11 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                     }
                     true
                 }
+            }
+            predictionUi.onSuggestionClick = { suggestion ->
+                service.commitText(suggestion)
+                isPredictionPresent = false
+                evalIdleUiState()
             }
         }
     }
@@ -366,6 +376,16 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         ClipboardManager.addOnUpdateListener(onClipboardUpdateListener)
         clipboardSuggestion.registerOnChangeListener(onClipboardSuggestionUpdateListener)
         clipboardItemTimeout.registerOnChangeListener(onClipboardTimeoutUpdateListener)
+
+        service.lifecycleScope.launch {
+            prediction.predictions.collect { list ->
+                isPredictionPresent = list.isNotEmpty()
+                if (isPredictionPresent) {
+                    idleUi.predictionUi.setSuggestions(list)
+                }
+                evalIdleUiState()
+            }
+        }
     }
 
     override fun onStartInput(info: EditorInfo, capFlags: CapabilityFlags) {

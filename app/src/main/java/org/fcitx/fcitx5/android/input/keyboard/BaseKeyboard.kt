@@ -28,6 +28,7 @@ import org.fcitx.fcitx5.android.input.popup.PopupActionListener
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.above
 import splitties.views.dsl.constraintlayout.below
+import kotlin.math.absoluteValue
 import splitties.views.dsl.constraintlayout.bottomOfParent
 import splitties.views.dsl.constraintlayout.centerHorizontally
 import splitties.views.dsl.constraintlayout.centerVertically
@@ -158,6 +159,7 @@ abstract class BaseKeyboard(
                 is ReturnKey -> InputFeedbacks.SoundEffect.Return
                 else -> InputFeedbacks.SoundEffect.Standard
             }
+            var inTrackpadMode = false
             if (def is SpaceKey) {
                 spaceKeys.add(this)
                 swipeEnabled = spaceSwipeMoveCursor.getValue()
@@ -166,18 +168,43 @@ abstract class BaseKeyboard(
                 swipeThresholdY = disabledSwipeThreshold
                 onGestureListener = OnGestureListener { view, event ->
                     when (event.type) {
-                        GestureType.Move -> when (val count = event.countX) {
-                            0 -> false
-                            else -> {
-                                val sym =
-                                    if (count > 0) FcitxKeyMapping.FcitxKey_Right else FcitxKeyMapping.FcitxKey_Left
-                                val action = KeyAction.SymAction(KeySym(sym), KeyStates.Virtual)
-                                repeat(count.absoluteValue) {
-                                    onAction(action)
+                        GestureType.Move -> {
+                            if (inTrackpadMode) {
+                                val countX = event.countX
+                                val countY = event.countY
+                                if (countX != 0) {
+                                    val sym =
+                                        if (countX > 0) FcitxKeyMapping.FcitxKey_Right else FcitxKeyMapping.FcitxKey_Left
+                                    onAction(KeyAction.SymAction(KeySym(sym), KeyStates.Virtual))
+                                    if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
+                                }
+                                if (countY != 0) {
+                                    val sym =
+                                        if (countY > 0) FcitxKeyMapping.FcitxKey_Down else FcitxKeyMapping.FcitxKey_Up
+                                    onAction(KeyAction.SymAction(KeySym(sym), KeyStates.Virtual))
                                     if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
                                 }
                                 true
+                            } else {
+                                when (val count = event.countX) {
+                                    0 -> false
+                                    else -> {
+                                        val sym =
+                                            if (count > 0) FcitxKeyMapping.FcitxKey_Right else FcitxKeyMapping.FcitxKey_Left
+                                        val action =
+                                            KeyAction.SymAction(KeySym(sym), KeyStates.Virtual)
+                                        repeat(count.absoluteValue) {
+                                            onAction(action)
+                                            if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
+                                        }
+                                        true
+                                    }
+                                }
                             }
+                        }
+                        GestureType.Up -> {
+                            inTrackpadMode = false
+                            false
                         }
                         else -> false
                     }
@@ -214,8 +241,16 @@ abstract class BaseKeyboard(
                     }
                     is KeyDef.Behavior.LongPress -> {
                         setOnLongClickListener { _ ->
-                            onAction(it.action)
-                            true
+                            if (def is SpaceKey && AppPrefs.getInstance().keyboard.spaceKeyLongPressBehavior.getValue() == SpaceLongPressBehavior.Trackpad) {
+                                inTrackpadMode = true
+                                swipeAfterLongPress = true
+                                swipeThresholdY = selectionSwipeThreshold
+                                InputFeedbacks.hapticFeedback(this, true)
+                                true
+                            } else {
+                                onAction(it.action)
+                                true
+                            }
                         }
                     }
                     is KeyDef.Behavior.Repeat -> {

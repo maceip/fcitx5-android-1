@@ -47,6 +47,9 @@ interface ClipboardDao {
     @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE text=:text AND sensitive=:sensitive AND deleted=0 LIMIT 1")
     suspend fun find(text: String, sensitive: Boolean = false): ClipboardEntry?
 
+    @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE type='' AND text!='' AND deleted=0 ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun getRecentTextEntries(limit: Int): List<ClipboardEntry>
+
     @Query("SELECT id FROM ${ClipboardEntry.TABLE_NAME} WHERE deleted=0")
     suspend fun findAllIds(): IntArray
 

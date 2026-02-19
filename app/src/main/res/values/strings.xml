@@ -213,6 +213,7 @@
     <string name="space_behavior_enumerate">Enumerate input methods</string>
     <string name="space_behavior_activate">Toggle input method activate state</string>
     <string name="space_behavior_picker">Show input method picker dialog</string>
+    <string name="space_behavior_trackpad">Cursor control (trackpad mode)</string>
     <string name="show_lang_switch_key">Show language switch key</string>
     <string name="horizontal_candidate_style">Horizontal candidate style</string>
     <string name="horizontal_candidate_never_fill">Never fill width</string>
@@ -327,4 +328,23 @@
     <string name="emoji_skin_tone_type_6">🏿 Type-6</string>
     <string name="hide_unsupported_emojis">Hide unsupported Emojis</string>
     <string name="key_border_stroke">Enable stroke for key border</string>
+    <string name="haptic_style">Haptic style</string>
+    <string name="haptic_style_soft">Soft (API 31+)</string>
+    <string name="haptic_style_sharp">Sharp (API 31+)</string>
+    <string name="haptic_style_bold">Bold (API 31+)</string>
+    <string name="fine_tune_haptics">Fine-tune haptics</string>
+    <string name="fine_tune_haptics_summary">Show advanced duration and amplitude controls</string>
+    <string name="desc_global_options">Configure core engine behavior</string>
+    <string name="desc_input_methods">Manage active languages and layouts</string>
+    <string name="desc_addons">Extend functionality with built-in modules</string>
+    <string name="desc_theme">Customize colors, backgrounds, and keys</string>
+    <string name="desc_virtual_keyboard">Feedback, haptics, and layout tweaks</string>
+    <string name="desc_candidates_window">Adjust candidate list appearance</string>
+    <string name="desc_clipboard">Manage history and suggestions</string>
+    <string name="desc_emoji_and_symbols">Emoji styles and symbol quick-access</string>
+    <string name="desc_plugins">Manage external Android plugins</string>
+    <string name="desc_advanced">Expert settings and troubleshooting</string>
+    <string name="desc_candidates_layout">Fine-tune candidate window dimensions</string>
+    <string name="glass_keyboard">Glass Keyboard (AlexMack)</string>
+    <string name="fine_tune_candidates_layout">Fine-tune candidates layout</string>
 </resources>

@@ -54,6 +54,12 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         )
     }
 
+    enum class HapticStyle(override val stringRes: Int) : ManagedPreferenceEnum {
+        Soft(R.string.haptic_style_soft),
+        Sharp(R.string.haptic_style_sharp),
+        Bold(R.string.haptic_style_bold)
+    }
+
     inner class Keyboard : ManagedPreferenceCategory(R.string.virtual_keyboard, sharedPreferences) {
         val hapticOnKeyPress =
             enumList(
@@ -65,8 +71,16 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             R.string.button_up_haptic_feedback,
             "haptic_on_keyup",
             false
-        ) { hapticOnKeyPress.getValue() != InputFeedbackMode.Disabled }
+        ) { hapticOnKeyPress.getValue() != InputFeedbackMode.Disabled && fineTuneHaptics.getValue() }
         val hapticOnRepeat = switch(R.string.haptic_on_repeat, "haptic_on_repeat", false)
+
+        val hapticStyle = enumList(R.string.haptic_style, "haptic_style", HapticStyle.Sharp) {
+            hapticOnKeyPress.getValue() != InputFeedbackMode.Disabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        }
+
+        val fineTuneHaptics = switch(R.string.fine_tune_haptics, "fine_tune_haptics", false) {
+            hapticOnKeyPress.getValue() != InputFeedbackMode.Disabled
+        }
 
         val buttonPressVibrationMilliseconds: ManagedPreference.PInt
         val buttonLongPressVibrationMilliseconds: ManagedPreference.PInt
@@ -84,7 +98,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 100,
                 "ms",
                 defaultLabel = R.string.system_default
-            ) { hapticOnKeyPress.getValue() != InputFeedbackMode.Disabled }
+            ) { hapticOnKeyPress.getValue() != InputFeedbackMode.Disabled && fineTuneHaptics.getValue() }
             buttonPressVibrationMilliseconds = primary
             buttonLongPressVibrationMilliseconds = secondary
         }
@@ -109,6 +123,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                         // hide this if using default duration
                         && (buttonPressVibrationMilliseconds.getValue() != 0 || buttonLongPressVibrationMilliseconds.getValue() != 0)
                         && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && appContext.vibrator.hasAmplitudeControl())
+                        && fineTuneHaptics.getValue()
             }
             buttonPressVibrationAmplitude = primary
             buttonLongPressVibrationAmplitude = secondary
@@ -266,6 +281,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             expandedCandidateGridSpanCountLandscape = secondary
         }
 
+        val glassKeyboard = switch(R.string.glass_keyboard, "glass_keyboard", false)
     }
 
     inner class Candidates :
@@ -282,6 +298,11 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             FloatingCandidatesOrientation.Automatic
         )
 
+        val fontSize =
+            int(R.string.candidates_font_size, "candidates_window_font_size", 20, 4, 64, "sp")
+
+        val fineTuneLayout = switch(R.string.fine_tune_candidates_layout, "candidates_fine_tune", false)
+
         val windowMinWidth = int(
             R.string.candidates_window_min_width,
             "candidates_window_min_width",
@@ -290,16 +311,17 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             640,
             "dp",
             10
-        )
+        ) { fineTuneLayout.getValue() }
 
         val windowPadding =
-            int(R.string.candidates_window_padding, "candidates_window_padding", 4, 0, 32, "dp")
-
-        val fontSize =
-            int(R.string.candidates_font_size, "candidates_window_font_size", 20, 4, 64, "sp")
+            int(R.string.candidates_window_padding, "candidates_window_padding", 4, 0, 32, "dp") {
+                fineTuneLayout.getValue()
+            }
 
         val windowRadius =
-            int(R.string.candidates_window_radius, "candidates_window_radius", 0, 0, 48, "dp")
+            int(R.string.candidates_window_radius, "candidates_window_radius", 0, 0, 48, "dp") {
+                fineTuneLayout.getValue()
+            }
 
         val itemPaddingVertical: ManagedPreference.PInt
         val itemPaddingHorizontal: ManagedPreference.PInt
@@ -316,7 +338,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 0,
                 64,
                 "dp"
-            )
+            ) { fineTuneLayout.getValue() }
             itemPaddingVertical = primary
             itemPaddingHorizontal = secondary
         }

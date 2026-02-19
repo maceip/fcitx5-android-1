@@ -41,6 +41,11 @@ class PreeditComponent : UniqueComponent<PreeditComponent>(), Dependent, InputBr
 
     override fun onInputPanelUpdate(data: FcitxEvent.InputPanelEvent.Data) {
         ui.update(data)
-        ui.root.visibility = if (ui.visible) View.VISIBLE else View.INVISIBLE
+        val visible = ui.visible
+        val targetVisibility = if (visible) View.VISIBLE else View.INVISIBLE
+        if (ui.root.visibility != targetVisibility) {
+            ui.root.visibility = targetVisibility
+            ui.root.requestLayout()
+        }
     }
 }

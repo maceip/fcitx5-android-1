@@ -53,10 +53,9 @@ abstract class FcitxPreferenceFragment : PaddingPreferenceFragment() {
         super.onCreate(savedInstanceState)
         requireActivity().onBackPressedDispatcher
             .addCallback(this, object : OnBackPressedCallback(true) {
-                // prevent "back" from navigating away from this Fragment when it's still saving
                 override fun handleOnBackPressed() {
+                    // Start saving and pop stack
                     lifecycleScope.withLoadingDialog(requireContext(), R.string.saving) {
-                        // complete the parent job and wait all "saveConfig" jobs to finish
                         supervisorJob.complete()
                         supervisorJob.join()
                         scope.cancel()

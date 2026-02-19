@@ -61,6 +61,19 @@ android {
     }
 }
 
+val copyModels = tasks.register<Copy>("copyModels") {
+    from(file("../models"))
+    into(layout.buildDirectory.dir("generated/assets/models"))
+}
+
+android {
+    sourceSets {
+        getByName("main") {
+            assets.srcDir(copyModels)
+        }
+    }
+}
+
 kotlin {
     sourceSets.configureEach {
         kotlin.srcDir(layout.buildDirectory.dir("generated/ksp/$name/kotlin"))
@@ -126,6 +139,12 @@ dependencies {
     implementation(libs.splitties.views.recyclerview)
     implementation(libs.aboutlibraries.core)
     implementation(libs.mlkit.translate)
+    implementation(project(":lib:sherpa-onnx"))
+    implementation(libs.tensorflow.lite)
+    implementation(libs.tensorflow.lite.gpu)
+    implementation(libs.tensorflow.lite.support) {
+        exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+    }
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.runner)

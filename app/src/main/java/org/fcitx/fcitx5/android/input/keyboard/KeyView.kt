@@ -25,6 +25,7 @@ import androidx.annotation.FloatRange
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.updateLayoutParams
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition
@@ -119,18 +120,26 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
         }
         // key border
         if ((bordered && def.border != Border.Off) || def.border == Border.On) {
+            val glass = AppPrefs.getInstance().keyboard.glassKeyboard.getValue()
             val bkgColor = when (def.variant) {
                 Variant.Normal, Variant.AltForeground -> theme.keyBackgroundColor
                 Variant.Alternative -> theme.altKeyBackgroundColor
                 Variant.Accent -> theme.accentKeyBackgroundColor
+            }.let { base ->
+                if (glass) {
+                    when (def.variant) {
+                        Variant.Accent -> 0x664CAF50.toInt() // Transparent Green for accent
+                        else -> 0x3381C784.toInt() // Very Transparent Light Green for normal
+                    }
+                } else base
             }
             val borderOrShadowWidth = dp(1)
             // background: key border
             appearanceView.background = if (borderStroke) borderedKeyBackgroundDrawable(
-                bkgColor, theme.keyShadowColor,
+                bkgColor, if (glass) 0x22000000 else theme.keyShadowColor,
                 radius, borderOrShadowWidth, hMargin, vMargin
             ) else shadowedKeyBackgroundDrawable(
-                bkgColor, theme.keyShadowColor,
+                bkgColor, if (glass) 0x22000000 else theme.keyShadowColor,
                 radius, borderOrShadowWidth, hMargin, vMargin
             )
             // foreground: press highlight or ripple

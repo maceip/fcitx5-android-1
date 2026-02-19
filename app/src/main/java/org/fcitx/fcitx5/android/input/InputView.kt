@@ -38,6 +38,12 @@ import org.fcitx.fcitx5.android.input.picker.emoticonPicker
 import org.fcitx.fcitx5.android.input.picker.symbolPicker
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
 import org.fcitx.fcitx5.android.input.preedit.PreeditComponent
+import org.fcitx.fcitx5.android.input.voice.RainbowMicView
+import org.fcitx.fcitx5.android.input.voice.VoiceInputComponent
+import org.fcitx.fcitx5.android.input.prediction.PredictionComponent
+import org.fcitx.fcitx5.android.input.llm.LocalLLMComponent
+import org.fcitx.fcitx5.android.input.keyboard.SwipeTrailView
+import org.fcitx.fcitx5.android.ui.effects.AlexMackBackground
 import org.fcitx.fcitx5.android.input.translate.TranslateBarComponent
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.unset
@@ -72,10 +78,20 @@ class InputView(
     theme: Theme
 ) : BaseInputView(service, fcitx, theme) {
 
-    private val keyBorder by ThemeManager.prefs.keyBorder
+    private val keyboardPrefs = AppPrefs.getInstance().keyboard
+    private val themedContext = context.withTheme(R.style.Theme_InputViewTheme)
+
+    private val glassKeyboard by keyboardPrefs.glassKeyboard
+
+    private val alexMackBackground = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        AlexMackBackground(themedContext).apply {
+            visibility = if (glassKeyboard) View.VISIBLE else View.GONE
+        }
+    } else null
 
     private val customBackground = imageView {
         scaleType = ImageView.ScaleType.CENTER_CROP
+        visibility = if (glassKeyboard && alexMackBackground != null) View.GONE else View.VISIBLE
     }
 
     private val placeholderOnClickListener = OnClickListener { }
@@ -94,7 +110,6 @@ class InputView(
     }
 
     private val scope = DynamicScope()
-    private val themedContext = context.withTheme(R.style.Theme_InputViewTheme)
     private val broadcaster = InputBroadcaster()
     private val popup = PopupComponent()
     private val punctuation = PunctuationComponent()
@@ -102,6 +117,9 @@ class InputView(
     private val preeditEmptyState = PreeditEmptyStateComponent()
     private val preedit = PreeditComponent()
     private val translateBar = TranslateBarComponent()
+    private val voiceInput = VoiceInputComponent()
+    private val prediction = PredictionComponent()
+    private val localLLM = LocalLLMComponent()
     private val commonKeyActionListener = CommonKeyActionListener()
     private val windowManager = InputWindowManager()
     private val kawaiiBar = KawaiiBarComponent()
@@ -124,14 +142,15 @@ class InputView(
         scope += preeditEmptyState
         scope += preedit
         scope += translateBar
+        scope += voiceInput
+        scope += prediction
+        scope += localLLM
         scope += commonKeyActionListener
         scope += windowManager
         scope += kawaiiBar
         scope += horizontalCandidate
         broadcaster.onScopeSetupFinished(scope)
     }
-
-    private val keyboardPrefs = AppPrefs.getInstance().keyboard
 
     private val focusChangeResetKeyboard by keyboardPrefs.focusChangeResetKeyboard
 
@@ -149,6 +168,7 @@ class InputView(
         keyboardSidePaddingLandscape,
         keyboardBottomPadding,
         keyboardBottomPaddingLandscape,
+        keyboardPrefs.glassKeyboard
     )
 
     private val keyboardHeightPx: Int
@@ -186,6 +206,14 @@ class InputView(
     }
 
     val keyboardView: View
+    val translateBarView: View
+        get() = translateBar.ui.root
+    val preeditView: View
+        get() = preedit.ui.root
+    val translateBarVisible: Boolean
+        get() = translateBar.isVisible
+    val preeditVisible: Boolean
+        get() = preedit.ui.root.visibility == View.VISIBLE
 
     init {
         // MUST call before any operation
@@ -204,9 +232,17 @@ class InputView(
         // show KeyboardWindow by default
         windowManager.attachWindow(KeyboardWindow)
 
+        val rainbowMic = RainbowMicView(themedContext, theme).apply {
+            visibility = View.GONE
+        }
+        voiceInput.onStartListening = { rainbowMic.startAnimation() }
+        voiceInput.onStopListening = { rainbowMic.stopAnimation() }
+
+        val swipeTrailView = SwipeTrailView(themedContext, theme)
+
         broadcaster.onImeUpdate(fcitx.runImmediately { inputMethodEntryCached })
 
-        customBackground.imageDrawable = theme.backgroundDrawable(keyBorder)
+        customBackground.imageDrawable = theme.backgroundDrawable(ThemeManager.prefs.keyBorder.getValue())
 
         keyboardView = constraintLayout {
             // allow MotionEvent to be delivered to keyboard while pressing on padding views.
@@ -217,6 +253,9 @@ class InputView(
                 centerVertically()
                 centerHorizontally()
             })
+            if (alexMackBackground != null) {
+                add(alexMackBackground, lParams(matchParent, matchParent))
+            }
             add(kawaiiBar.view, lParams(matchParent, dp(KawaiiBarComponent.HEIGHT)) {
                 topOfParent()
                 centerHorizontally()
@@ -243,6 +282,12 @@ class InputView(
                 endToStartOf(rightPaddingSpace)
                 bottomOfParent()
             })
+            add(swipeTrailView, lParams(matchParent, matchParent))
+        }
+
+        keyboardView.setOnTouchListener { _, event ->
+            swipeTrailView.handleTouchEvent(event)
+            false // allow events to propagate to keys
         }
 
         updateKeyboardSize()
@@ -263,11 +308,21 @@ class InputView(
             centerVertically()
             centerHorizontally()
         })
+        add(rainbowMic, lParams(dp(64), dp(64)) {
+            bottomOfParent()
+            endOfParent()
+            bottomMargin = dp(60)
+            rightMargin = dp(16)
+        })
 
         keyboardPrefs.registerOnChangeListener(onKeyboardSizeChangeListener)
     }
 
     private fun updateKeyboardSize() {
+        val glass = glassKeyboard
+        alexMackBackground?.visibility = if (glass) VISIBLE else GONE
+        customBackground.visibility = if (glass && alexMackBackground != null) GONE else VISIBLE
+        
         windowManager.view.updateLayoutParams {
             height = keyboardHeightPx
         }
@@ -319,6 +374,7 @@ class InputView(
     fun startInput(info: EditorInfo, capFlags: CapabilityFlags, restarting: Boolean = false) {
         broadcaster.onStartInput(info, capFlags)
         returnKeyDrawable.updateDrawableOnEditorInfo(info)
+        alexMackBackground?.setAppBackground(info.packageName)
         if (focusChangeResetKeyboard || !restarting) {
             windowManager.attachWindow(KeyboardWindow)
         }

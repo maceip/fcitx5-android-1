@@ -102,6 +102,10 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
         }
     }
 
+    suspend fun getRecentSnippets(limit: Int): List<String> = withContext(Dispatchers.IO) {
+        clbDao.getRecentTextEntries(limit).map { it.text }
+    }
+
     private suspend fun cleanOrphanedMedia() {
         try {
             val validPaths = clbDao.getAllMediaPaths().toSet()
