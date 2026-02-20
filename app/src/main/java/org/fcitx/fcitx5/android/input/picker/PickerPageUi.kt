@@ -51,12 +51,13 @@ class PickerPageUi(
     override val ctx: Context,
     theme: Theme,
     density: Density,
-    bordered: Boolean = false
+    bordered: Boolean = false,
+    val isWide: Boolean = false
 ) : Ui {
 
     enum class Density(
-        val pageSize: Int,
-        val columnCount: Int,
+        val basePageSize: Int,
+        val baseColumnCount: Int,
         val rowCount: Int,
         val textSize: Float,
         val autoScale: Boolean,
@@ -69,7 +70,10 @@ class PickerPageUi(
         Medium(20, 7, 3, 23.7f, false, true),
 
         // emoticon: 4/4/4, no backspace
-        Low(12, 4, 3, 19f, true, false)
+        Low(12, 4, 3, 19f, true, false);
+
+        fun pageSize(isWide: Boolean) = if (isWide) basePageSize * 2 else basePageSize
+        fun columnCount(isWide: Boolean) = if (isWide) baseColumnCount * 2 else baseColumnCount
     }
 
     companion object {
@@ -87,7 +91,7 @@ class PickerPageUi(
         border = if (bordered) Border.On else Border.Off
     )
 
-    private val keyViews = Array(density.pageSize) {
+    private val keyViews = Array(density.pageSize(isWide)) {
         TextKeyView(ctx, theme, keyAppearance).apply {
             if (density.autoScale) {
                 mainText.apply {
@@ -118,7 +122,7 @@ class PickerPageUi(
     }
 
     override val root = constraintLayout {
-        val columnCount = density.columnCount
+        val columnCount = density.columnCount(isWide)
         val rowCount = density.rowCount
         val keyWidth = 1f / columnCount
         keyViews.forEachIndexed { i, keyView ->

@@ -95,6 +95,9 @@ sealed class SettingsRoute : Parcelable {
     @Serializable
     data object About : SettingsRoute()
 
+    @Serializable
+    data object ModernSettings : SettingsRoute()
+
     /* ========== External ========== */
 
     @Serializable
@@ -222,6 +225,9 @@ sealed class SettingsRoute : Parcelable {
             }
             fragment<AboutFragment, About> {
                 label = ctx.getString(R.string.about)
+            }
+            fragment<org.fcitx.fcitx5.android.ui.main.settings.ModernSettingsFragment, ModernSettings> {
+                label = "Modern Interface"
             }
 
             /* ========== External ========== */

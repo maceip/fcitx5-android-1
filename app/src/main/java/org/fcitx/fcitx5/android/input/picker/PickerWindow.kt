@@ -112,7 +112,7 @@ class PickerWindow(
         pickerLayout = this
         val bordered = followKeyBorder && keyBorder
         pickerPagesAdapter = PickerPagesAdapter(
-            theme, keyActionListener, popupActionListener, data,
+            context, theme, keyActionListener, popupActionListener, data,
             density, key.name, bordered, isEmoji
         )
         tabsUi.apply {

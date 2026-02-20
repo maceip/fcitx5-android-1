@@ -7,6 +7,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.kotlin.parcelize) apply false
     alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.android.asset.pack) apply false
+    alias(libs.plugins.play.publisher) apply false
 }
 
 tasks.register("clean", Delete::class) {

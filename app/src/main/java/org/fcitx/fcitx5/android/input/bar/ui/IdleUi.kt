@@ -71,7 +71,9 @@ class IdleUi(
         rotation = menuButtonRotation
     }
 
-    val hideKeyboardButton = ToolButton(ctx, R.drawable.ic_baseline_arrow_drop_down_24, theme)
+    val hideKeyboardButton = ToolButton(ctx, R.drawable.ic_baseline_arrow_drop_down_24, theme).apply {
+        visibility = View.GONE
+    }
 
     val emptyBar = Space(ctx)
 
@@ -113,20 +115,7 @@ class IdleUi(
     }
 
     override val root = constraintLayout {
-        val size = dp(KawaiiBarComponent.HEIGHT)
-        add(menuButton, lParams(size, size) {
-            startOfParent()
-            centerVertically()
-        })
-        add(hideKeyboardButton, lParams(size, size) {
-            endOfParent()
-            centerVertically()
-        })
-        add(animator, lParams(matchConstraints, matchParent) {
-            after(menuButton)
-            before(hideKeyboardButton)
-            centerVertically()
-        })
+        add(animator, lParams(matchParent, matchParent))
         add(numberRow, lParams(matchParent, matchParent))
     }
 
@@ -214,7 +203,7 @@ class IdleUi(
             numberRow.popupActionListener = popup.listener
         } else {
             menuButton.visibility = View.VISIBLE
-            hideKeyboardButton.visibility = View.VISIBLE
+            hideKeyboardButton.visibility = View.GONE // Permanently hidden per wireframe
             animator.visibility = View.VISIBLE
             numberRow.visibility = View.GONE
             numberRow.keyActionListener = null

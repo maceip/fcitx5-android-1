@@ -15,4 +15,9 @@
     <style name="Theme.DialogTheme" parent="@android:style/Theme.DeviceDefault.Light.Dialog" />
 
     <style name="InputViewSnackbarTheme" parent="Theme.MaterialComponents.Light.NoActionBar" />
+
+    <style name="Animation.InputMethod" parent="@android:style/Animation.InputMethod">
+        <item name="android:windowEnterAnimation">@anim/ime_enter</item>
+        <item name="android:windowExitAnimation">@anim/ime_exit</item>
+    </style>
 </resources>

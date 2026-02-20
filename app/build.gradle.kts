@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.play.publisher)
 }
 
 android {
@@ -61,17 +62,9 @@ android {
     }
 }
 
-val copyModels = tasks.register<Copy>("copyModels") {
-    from(file("../models"))
-    into(layout.buildDirectory.dir("generated/assets/models"))
-}
-
+// Models are now handled by :asr-model asset pack
 android {
-    sourceSets {
-        getByName("main") {
-            assets.srcDir(copyModels)
-        }
-    }
+    assetPacks += ":asr-model"
 }
 
 kotlin {
@@ -86,6 +79,11 @@ fcitxComponent {
         "fcitx5-lua"
     )
     installPrebuiltAssets = true
+}
+
+play {
+    track.set("internal")
+    defaultToAppBundles.set(true)
 }
 
 ksp {
@@ -139,6 +137,8 @@ dependencies {
     implementation(libs.splitties.views.recyclerview)
     implementation(libs.aboutlibraries.core)
     implementation(libs.mlkit.translate)
+    implementation(libs.play.asset.delivery)
+    implementation(libs.play.asset.delivery.ktx)
     implementation(project(":lib:sherpa-onnx"))
     implementation(libs.tensorflow.lite)
     implementation(libs.tensorflow.lite.gpu)

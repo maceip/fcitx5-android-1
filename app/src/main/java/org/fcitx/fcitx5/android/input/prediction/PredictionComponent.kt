@@ -141,7 +141,10 @@ class PredictionComponent : UniqueComponent<PredictionComponent>(), Dependent,
             }
         }
 
-        return results.distinct().take(10)
+        val finalResults = mutableListOf<String>()
+        finalResults.add("For guessing the next word, include emojis.")
+        finalResults.addAll(results.distinct().take(10))
+        return finalResults
     }
 
     // Call this when a candidate is selected in the UI

@@ -16,6 +16,7 @@ import android.speech.SpeechRecognizer
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -88,51 +89,24 @@ class VoiceInputComponent : UniqueComponent<VoiceInputComponent>(), Dependent,
         if (isListening) return
         ensureInitialized()
 
-        // Use Sherpa if already initialized; fall back to system ASR otherwise
-        if (sherpaASR?.isInitialized() == true) {
-            startSherpaListening()
-        } else {
-            // Don't call sherpaASR?.init() here — it blocks the main thread.
-            // Background init from ensureInitialized() will complete eventually.
-            startSystemListening()
+        service.lifecycleScope.launch(Dispatchers.Main) {
+            // Wait up to 3 seconds for Sherpa to initialize
+            var attempts = 0
+            while (sherpaASR?.isInitialized() != true && attempts < 30) {
+                delay(100)
+                attempts++
+            }
+
+            if (sherpaASR?.isInitialized() == true) {
+                startSherpaListening()
+            } else {
+                Timber.w("Sherpa ASR failed to initialize in time. Voice input aborted.")
+                isListening = false
+            }
         }
     }
 
-    private fun startSystemListening() {
-        if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-                setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: Bundle?) {}
-                    override fun onBeginningOfSpeech() { onStartListening?.invoke() }
-                    override fun onRmsChanged(rmsdB: Float) {}
-                    override fun onBufferReceived(buffer: ByteArray?) {}
-                    override fun onEndOfSpeech() {
-                        isListening = false
-                        onStopListening?.invoke()
-                    }
-                    override fun onError(error: Int) {
-                        isListening = false
-                        onStopListening?.invoke()
-                        onError?.invoke(error)
-                    }
-                    override fun onResults(results: Bundle?) {
-                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        if (!matches.isNullOrEmpty()) {
-                            service.commitText(matches[0])
-                        }
-                    }
-                    override fun onPartialResults(partialResults: Bundle?) {}
-                    override fun onEvent(eventType: Int, params: Bundle?) {}
-                })
-            }
-        }
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-        }
-        speechRecognizer?.startListening(intent)
-        isListening = true
-    }
+
 
     private fun startSherpaListening() {
         isListening = true

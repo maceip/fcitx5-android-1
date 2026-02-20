@@ -346,5 +346,12 @@
     <string name="desc_advanced">Expert settings and troubleshooting</string>
     <string name="desc_candidates_layout">Fine-tune candidate window dimensions</string>
     <string name="glass_keyboard">Glass Keyboard (AlexMack)</string>
+    <string name="glass_frost_level">Glass Frost Refraction</string>
+    <string name="glass_smoke_mode">Glass Smoke Mode</string>
+    <string name="glass_dark_mode">Liquid Glass Dark Mode</string>
+    <string name="glass_electric_pink">Electric Pink Press Tint</string>
     <string name="fine_tune_candidates_layout">Fine-tune candidates layout</string>
+    <string name="rainbow_mic_enabled">Microphone rainbow mode</string>
+    <string name="modern_interface">Modern Interface (Preview)</string>
+    <string name="split_mode">Folding / Split Layout</string>
 </resources>

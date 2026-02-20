@@ -183,6 +183,8 @@ class CommonKeyActionListener :
                         SpaceLongPressBehavior.Trackpad -> {}
                     }
                 }
+                is KeyAction.NextFieldAction -> service.performNextField()
+                is KeyAction.PrevFieldAction -> service.performPrevField()
                 else -> {}
             }
         }

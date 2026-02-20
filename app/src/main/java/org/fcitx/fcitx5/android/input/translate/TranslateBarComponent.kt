@@ -40,17 +40,6 @@ class TranslateBarComponent : UniqueComponent<TranslateBarComponent>(), Dependen
         CompactTranslateUi(context, theme).apply {
             root.visibility = View.GONE
 
-            sendButton.setOnClickListener {
-                val translated = outputText.text?.toString()
-                if (!translated.isNullOrBlank() && translated != "...") {
-                    service.commitText(translated)
-                }
-            }
-
-            translateButton.setOnClickListener {
-                performTranslation()
-            }
-
             swapButton.setOnClickListener { swapLanguages() }
 
             closeButton.setOnClickListener { hide() }
@@ -81,9 +70,38 @@ class TranslateBarComponent : UniqueComponent<TranslateBarComponent>(), Dependen
                 }
             }
 
-            sourceInput.setOnEditorActionListener { _, _, _ ->
-                performTranslation()
-                true
+            sourceInput.addTextChangedListener(
+                object : android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        val text = s?.toString()
+                        if (text.isNullOrBlank()) {
+                            // If empty, commit empty text or nothing
+                        } else {
+                            // Debounce live translation
+                            translateJob?.cancel()
+                            translateJob = service.lifecycleScope.launch {
+                                kotlinx.coroutines.delay(500)
+                                val result = provider.translate(text, sourceLang, targetLang)
+                                if (result.isNotBlank()) {
+                                    val old = service.focusedEditText
+                                    service.focusedEditText = null
+                                    service.commitText(result)
+                                    service.focusedEditText = old
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+
+            sourceInput.setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    service.focusedEditText = sourceInput
+                } else if (service.focusedEditText == sourceInput) {
+                    service.focusedEditText = null
+                }
             }
         }
     }
@@ -100,12 +118,15 @@ class TranslateBarComponent : UniqueComponent<TranslateBarComponent>(), Dependen
         ui.targetLangButton.text = targetLang.uppercase()
         ui.root.visibility = View.VISIBLE
         ui.root.requestLayout()
+        ui.sourceInput.requestFocus()
+        service.focusedEditText = ui.sourceInput
     }
 
     fun hide() {
         translateJob?.cancel()
         ui.root.visibility = View.GONE
         ui.root.requestLayout()
+        service.focusedEditText = null
     }
 
     private fun showLanguagePicker(currentCode: String, onSelected: (Language) -> Unit) {
@@ -113,22 +134,27 @@ class TranslateBarComponent : UniqueComponent<TranslateBarComponent>(), Dependen
         val names = languages.map { it.displayName }.toTypedArray()
         val checkedIndex = languages.indexOfFirst { it.code == currentCode }.coerceAtLeast(0)
 
-        val dialog = AlertDialog.Builder(context)
-            .setTitle(R.string.translate_pick_language)
-            .setSingleChoiceItems(names, checkedIndex) { dlg, which ->
-                onSelected(languages[which])
-                dlg.dismiss()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .create()
-
-        dialog.window?.let { win ->
-            win.setType(WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG)
-            win.attributes = win.attributes.also {
-                it.token = ui.root.windowToken
+        // Modern UI: Use a themed PopupMenu instead of a full dialog
+        val anchor = if (currentCode == sourceLang) ui.sourceLangButton else ui.targetLangButton
+        val popup = android.widget.PopupMenu(context, anchor)
+        
+        languages.forEachIndexed { index, lang ->
+            popup.menu.add(0, index, index, lang.displayName).apply {
+                isCheckable = true
+                isChecked = index == checkedIndex
             }
         }
-        dialog.show()
+        
+        popup.setOnMenuItemClickListener { item ->
+            onSelected(languages[item.itemId])
+            true
+        }
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            popup.setForceShowIcon(true)
+        }
+        
+        popup.show()
     }
 
     private fun swapLanguages() {
@@ -157,10 +183,14 @@ class TranslateBarComponent : UniqueComponent<TranslateBarComponent>(), Dependen
         val text = ui.sourceInput.text?.toString() ?: return
         if (text.isBlank()) return
         translateJob?.cancel()
-        ui.outputText.text = "..."
         translateJob = service.lifecycleScope.launch {
             val result = provider.translate(text, sourceLang, targetLang)
-            ui.outputText.text = result
+            if (result.isNotBlank()) {
+                val old = service.focusedEditText
+                service.focusedEditText = null
+                service.commitText(result)
+                service.focusedEditText = old
+            }
         }
     }
 }

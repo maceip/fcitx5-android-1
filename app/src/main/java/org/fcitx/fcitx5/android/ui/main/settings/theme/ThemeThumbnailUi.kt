@@ -42,7 +42,7 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
     enum class State { Normal, Selected, LightMode, DarkMode }
 
     val bkg = imageView {
-        scaleType = ImageView.ScaleType.CENTER_CROP
+        scaleType = ImageView.ScaleType.FIT_XY
     }
 
     val bar = view(::View)

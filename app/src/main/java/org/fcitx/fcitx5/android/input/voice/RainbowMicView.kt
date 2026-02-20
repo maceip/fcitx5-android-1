@@ -9,6 +9,8 @@ import android.content.Context
 import android.graphics.*
 import android.view.View
 import android.view.animation.LinearInterpolator
+import androidx.core.content.ContextCompat
+import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
 import splitties.dimensions.dp
 
@@ -35,6 +37,12 @@ class RainbowMicView(context: Context, val theme: Theme) : View(context) {
     )
 
     private var gradient: SweepGradient? = null
+    
+    // Load the actual microphone drawable instead of a placeholder circle
+    private val micDrawable = ContextCompat.getDrawable(context, R.drawable.ic_baseline_keyboard_voice_24)?.apply {
+        // Tint the microphone to match the active keyboard text color
+        colorFilter = PorterDuffColorFilter(theme.keyTextColor, PorterDuff.Mode.SRC_IN)
+    }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -52,12 +60,14 @@ class RainbowMicView(context: Context, val theme: Theme) : View(context) {
         canvas.drawCircle(w / 2f, h / 2f, radius, paint)
         canvas.restore()
 
-        // Draw the inner "bright white" mic placeholder or icon
-        // For simplicity, just a white circle for now
-        paint.shader = null
-        paint.color = Color.WHITE
-        paint.style = Paint.Style.FILL
-        canvas.drawCircle(w / 2f, h / 2f, radius * 0.7f, paint)
+        // Draw the mic icon in the center, scaled to fit comfortably within the radius
+        micDrawable?.let { drawable ->
+            val iconSize = (radius * 1.2f).toInt()
+            val left = ((w - iconSize) / 2f).toInt()
+            val top = ((h - iconSize) / 2f).toInt()
+            drawable.setBounds(left, top, left + iconSize, top + iconSize)
+            drawable.draw(canvas)
+        }
     }
 
     fun startAnimation() {

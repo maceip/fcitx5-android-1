@@ -149,60 +149,25 @@ class QuickPhraseKey : KeyDef(
         viewId = R.id.button_quickphrase
     ),
     setOf(
-        Behavior.Press(KeyAction.QuickPhraseAction),
-        Behavior.LongPress(KeyAction.UnicodeAction)
+        Behavior.Press(KeyAction.QuickPhraseAction)
     )
 )
 
-class CommaKey(
-    percentWidth: Float,
-    variant: Variant,
+class EmojiKey(
+    percentWidth: Float = 0.1f,
+    variant: Variant = Variant.Alternative,
 ) : KeyDef(
-    Appearance.ImageText(
-        displayText = ",",
-        textSize = 23f,
+    Appearance.Image(
+        src = R.drawable.ic_baseline_tag_faces_24,
         percentWidth = percentWidth,
-        variant = variant,
-        src = R.drawable.ic_baseline_tag_faces_24
+        variant = variant
     ),
     setOf(
-        Behavior.Press(KeyAction.FcitxKeyAction(","))
-    ),
-    arrayOf(
-        Popup.Preview(","),
-        Popup.Menu(
-            arrayOf(
-                Popup.Menu.Item(
-                    "Emoji",
-                    R.drawable.ic_baseline_tag_faces_24,
-                    KeyAction.PickerSwitchAction()
-                ),
-                Popup.Menu.Item(
-                    "QuickPhrase",
-                    R.drawable.ic_baseline_format_quote_24,
-                    KeyAction.QuickPhraseAction
-                ),
-                Popup.Menu.Item(
-                    "Unicode",
-                    R.drawable.ic_logo_unicode,
-                    KeyAction.UnicodeAction
-                )
-            )
-        )
+        Behavior.Press(KeyAction.PickerSwitchAction())
     )
 )
 
-class LanguageKey : KeyDef(
-    Appearance.Image(
-        src = R.drawable.ic_baseline_language_24,
-        variant = Variant.AltForeground,
-        viewId = R.id.button_lang
-    ),
-    setOf(
-        Behavior.Press(KeyAction.LangSwitchAction),
-        Behavior.LongPress(KeyAction.ShowInputMethodPickerAction)
-    )
-)
+
 
 class SpaceKey : KeyDef(
     Appearance.Text(

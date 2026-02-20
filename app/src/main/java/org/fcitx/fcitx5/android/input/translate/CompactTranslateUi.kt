@@ -5,6 +5,9 @@
 package org.fcitx.fcitx5.android.input.translate
 
 import android.content.Context
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
@@ -28,119 +31,82 @@ class CompactTranslateUi(
     private val theme: Theme
 ) : Ui {
 
+    private fun squircle(color: Int, radius: Float = 8f) = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = ctx.dp(radius).toFloat()
+        setColor(color)
+    }
+
+    private fun borderSquircle(color: Int, borderColor: Int, radius: Float = 24f) = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = ctx.dp(radius).toFloat()
+        setColor(color)
+        setStroke(ctx.dp(1), borderColor)
+    }
+
     val sourceLangButton = Button(ctx).apply {
         text = "EN"
         setTextColor(theme.keyTextColor)
-        setBackgroundColor(theme.barColor)
-        textSize = 11f
-        isAllCaps = true
-        setPadding(ctx.dp(4), 0, ctx.dp(4), 0)
-        minHeight = ctx.dp(28)
-        minimumHeight = ctx.dp(28)
+        background = squircle(theme.keyBackgroundColor, 16f)
+        textSize = 12f
+        isAllCaps = false
+        minHeight = dp(36)
+        minimumHeight = dp(36)
     }
 
     val swapButton = ImageButton(ctx).apply {
         setImageResource(R.drawable.ic_baseline_swap_horiz_24)
-        setColorFilter(theme.altKeyTextColor)
-        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        setColorFilter(theme.keyTextColor)
+        background = squircle(Color.TRANSPARENT)
         contentDescription = ctx.getString(R.string.translate_swap)
+        setPadding(dp(4), dp(4), dp(4), dp(4))
     }
 
     val targetLangButton = Button(ctx).apply {
         text = "ES"
         setTextColor(theme.keyTextColor)
-        setBackgroundColor(theme.barColor)
-        textSize = 11f
-        isAllCaps = true
-        setPadding(ctx.dp(4), 0, ctx.dp(4), 0)
-        minHeight = ctx.dp(28)
-        minimumHeight = ctx.dp(28)
+        background = squircle(theme.keyBackgroundColor, 16f)
+        textSize = 12f
+        isAllCaps = false
+        minHeight = dp(36)
+        minimumHeight = dp(36)
     }
 
     val closeButton = ImageButton(ctx).apply {
-        setImageResource(R.drawable.ic_baseline_close_24)
-        setColorFilter(theme.altKeyTextColor)
-        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        setImageResource(R.drawable.ic_baseline_arrow_back_24)
+        setColorFilter(theme.keyTextColor)
+        background = squircle(theme.keyBackgroundColor, 24f) // Fully rounded circle
         contentDescription = ctx.getString(R.string.back_to_keyboard)
-    }
-
-    private val langBar = horizontalLayout {
-        gravity = Gravity.CENTER_VERTICAL
-        add(sourceLangButton, lParams(0, wrapContent) { weight = 1f })
-        add(swapButton, lParams(ctx.dp(32), ctx.dp(28)))
-        add(targetLangButton, lParams(0, wrapContent) { weight = 1f })
-        add(closeButton, lParams(ctx.dp(32), ctx.dp(28)))
+        elevation = dp(2).toFloat()
     }
 
     val sourceInput = EditText(ctx).apply {
         hint = ctx.getString(R.string.translate_source_hint)
         setHintTextColor(theme.altKeyTextColor)
         setTextColor(theme.keyTextColor)
-        setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        textSize = 13f
+        // 1px border pill shape
+        background = borderSquircle(theme.keyBackgroundColor, theme.dividerColor, 24f)
+        textSize = 14f
         isSingleLine = true
-        padding = ctx.dp(4)
+        setPadding(dp(16), dp(8), dp(16), dp(8))
         isFocusable = true
         isFocusableInTouchMode = true
     }
 
-    val translateButton = Button(ctx).apply {
-        text = ctx.getString(R.string.translate_action)
-        setTextColor(theme.keyTextColor)
-        setBackgroundColor(theme.genericActiveBackgroundColor)
-        textSize = 12f
-        isAllCaps = false
-        minHeight = ctx.dp(30)
-        minimumHeight = ctx.dp(30)
-    }
-
-    val outputText = TextView(ctx).apply {
-        setTextColor(theme.keyTextColor)
-        setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        textSize = 13f
-        isSingleLine = true
-        padding = ctx.dp(4)
-    }
-
-    val sendButton = Button(ctx).apply {
-        text = ctx.getString(R.string.translate_send)
-        setTextColor(theme.keyTextColor)
-        setBackgroundColor(theme.genericActiveBackgroundColor)
-        textSize = 12f
-        isAllCaps = false
-        minHeight = ctx.dp(30)
-        minimumHeight = ctx.dp(30)
-    }
-
-    private val inputRow = horizontalLayout {
+    override val root: View = horizontalLayout {
+        padding = dp(8)
         gravity = Gravity.CENTER_VERTICAL
-        add(sourceInput, lParams(0, wrapContent) { weight = 1f })
-        add(translateButton, lParams(wrapContent, wrapContent) {
-            marginStart = ctx.dp(2)
+        
+        add(closeButton, lParams(dp(40), dp(40)))
+        
+        add(sourceInput, lParams(0, dp(40)) {
+            weight = 1f
+            marginStart = dp(8)
+            marginEnd = dp(8)
         })
-    }
-
-    private val outputRow = horizontalLayout {
-        gravity = Gravity.CENTER_VERTICAL
-        add(outputText, lParams(0, wrapContent) { weight = 1f })
-        add(sendButton, lParams(wrapContent, wrapContent) {
-            marginStart = ctx.dp(2)
-        })
-    }
-
-    override val root: View = verticalLayout {
-        padding = ctx.dp(4)
-        setBackgroundColor(theme.barColor)
-        add(langBar, lParams(matchParent, wrapContent))
-        add(View(ctx).apply {
-            setBackgroundColor(theme.dividerColor)
-        }, lParams(matchParent, ctx.dp(1)) {
-            topMargin = ctx.dp(2)
-            bottomMargin = ctx.dp(2)
-        })
-        add(inputRow, lParams(matchParent, wrapContent))
-        add(outputRow, lParams(matchParent, wrapContent) {
-            topMargin = ctx.dp(2)
-        })
+        
+        add(sourceLangButton, lParams(wrapContent, dp(36)))
+        add(swapButton, lParams(dp(32), dp(32)))
+        add(targetLangButton, lParams(wrapContent, dp(36)))
     }
 }

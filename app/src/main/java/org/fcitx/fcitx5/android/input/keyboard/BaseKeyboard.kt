@@ -58,6 +58,7 @@ abstract class BaseKeyboard(
     private val expandKeypressArea by prefs.keyboard.expandKeypressArea
     private val swipeSymbolDirection by prefs.keyboard.swipeSymbolDirection
 
+    private val splitMode = context.resources.configuration.screenWidthDp >= 600
     private val spaceSwipeMoveCursor = prefs.keyboard.spaceSwipeMoveCursor
     private val spaceKeys = mutableListOf<KeyView>()
     private val spaceSwipeChangeListener = ManagedPreference.OnChangeListener<Boolean> { _, v ->
@@ -71,6 +72,7 @@ abstract class BaseKeyboard(
     private val hapticOnRepeat by prefs.keyboard.hapticOnRepeat
 
     var popupActionListener: PopupActionListener? = null
+    var onTrackpadStateChanged: ((Boolean) -> Unit)? = null
 
     private val selectionSwipeThreshold = dp(10f)
     private val inputSwipeThreshold = dp(36f)
@@ -92,24 +94,55 @@ abstract class BaseKeyboard(
             val keyViews = row.map(::createKeyView)
             constraintLayout Row@{
                 var totalWidth = 0f
+                val splitIndex = if (splitMode) row.size / 2 else -1
+                val gapWidth = 0.12f // 12% gap for folding screens
+
                 keyViews.forEachIndexed { index, view ->
+                    if (splitMode && index == splitIndex) {
+                        // Insert gap spacer
+                        val spacer = View(context)
+                        add(spacer, lParams(0, 0) {
+                            centerVertically()
+                            leftToRightOf(keyViews[index - 1])
+                            rightToLeftOf(view)
+                            matchConstraintPercentWidth = gapWidth
+                        })
+                    }
                     add(view, lParams {
                         centerVertically()
                         if (index == 0) {
                             leftOfParent()
                             horizontalChainStyle = LayoutParams.CHAIN_PACKED
                         } else {
-                            leftToRightOf(keyViews[index - 1])
+                            if (splitMode && index == splitIndex) {
+                                // Handled by spacer
+                                // But we still need the chain link
+                                // The spacer's constraints already bridge index-1 and index
+                            }
+                            leftToRightOf(if (splitMode && index == splitIndex) {
+                                // This is tricky with Chain. 
+                                // Best to just use the standard chain and adjust the first view after the gap.
+                                keyViews[index - 1] 
+                            } else {
+                                keyViews[index - 1]
+                            })
                         }
                         if (index == keyViews.size - 1) {
                             rightOfParent()
-                            // for RTL
                             horizontalChainStyle = LayoutParams.CHAIN_PACKED
                         } else {
                             rightToLeftOf(keyViews[index + 1])
                         }
                         val def = row[index]
-                        matchConstraintPercentWidth = def.appearance.percentWidth
+                        matchConstraintPercentWidth = if (splitMode) {
+                            def.appearance.percentWidth * (1f - gapWidth)
+                        } else {
+                            def.appearance.percentWidth
+                        }
+                        
+                        if (splitMode && index == splitIndex) {
+                            leftMargin = (gapWidth * context.resources.displayMetrics.widthPixels).toInt()
+                        }
                     })
                     row[index].appearance.percentWidth.let {
                         // 0f means fill remaining space, thus does not need expanding
@@ -164,8 +197,13 @@ abstract class BaseKeyboard(
                 spaceKeys.add(this)
                 swipeEnabled = spaceSwipeMoveCursor.getValue()
                 swipeRepeatEnabled = true
-                swipeThresholdX = selectionSwipeThreshold
-                swipeThresholdY = disabledSwipeThreshold
+                // Increase X threshold to reduce horizontal sensitivity per user request
+                swipeThresholdX = selectionSwipeThreshold * 1.5f
+                // Enable Y threshold for up/down boundary jumping
+                swipeThresholdY = selectionSwipeThreshold
+                
+                var hasJumpedVertically = false
+
                 onGestureListener = OnGestureListener { view, event ->
                     when (event.type) {
                         GestureType.Move -> {
@@ -179,31 +217,49 @@ abstract class BaseKeyboard(
                                     if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
                                 }
                                 if (countY != 0) {
-                                    val sym =
-                                        if (countY > 0) FcitxKeyMapping.FcitxKey_Down else FcitxKeyMapping.FcitxKey_Up
-                                    onAction(KeyAction.SymAction(KeySym(sym), KeyStates.Virtual))
+                                    if (countY > 0) {
+                                        onAction(KeyAction.NextFieldAction)
+                                    } else {
+                                        onAction(KeyAction.PrevFieldAction)
+                                    }
+                                    // Reset trackpad mode on focus change to avoid unintended skips
+                                    inTrackpadMode = false
                                     if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
                                 }
                                 true
                             } else {
-                                when (val count = event.countX) {
-                                    0 -> false
-                                    else -> {
-                                        val sym =
-                                            if (count > 0) FcitxKeyMapping.FcitxKey_Right else FcitxKeyMapping.FcitxKey_Left
-                                        val action =
-                                            KeyAction.SymAction(KeySym(sym), KeyStates.Virtual)
-                                        repeat(count.absoluteValue) {
-                                            onAction(action)
-                                            if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
-                                        }
-                                        true
+                                val countX = event.countX
+                                val countY = event.countY
+                                
+                                if (countY != 0 && !hasJumpedVertically) {
+                                    // Vertical swipe detected -> jump to start or end of the text box
+                                    val sym = if (countY < 0) FcitxKeyMapping.FcitxKey_Home else FcitxKeyMapping.FcitxKey_End
+                                    onAction(KeyAction.SymAction(KeySym(sym), KeyStates.Virtual))
+                                    
+                                    // Double haptic feedback as requested
+                                    InputFeedbacks.hapticFeedback(view, true)
+                                    InputFeedbacks.hapticFeedback(view, true)
+                                    
+                                    hasJumpedVertically = true
+                                    true
+                                } else if (countX != 0) {
+                                    val sym =
+                                        if (countX > 0) FcitxKeyMapping.FcitxKey_Right else FcitxKeyMapping.FcitxKey_Left
+                                    val action =
+                                        KeyAction.SymAction(KeySym(sym), KeyStates.Virtual)
+                                    repeat(countX.absoluteValue) {
+                                        onAction(action)
+                                        if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
                                     }
-                                }
+                                    true
+                                } else false
                             }
                         }
                         GestureType.Up -> {
-                            inTrackpadMode = false
+                            if (inTrackpadMode) {
+                                inTrackpadMode = false
+                            }
+                            hasJumpedVertically = false
                             false
                         }
                         else -> false
@@ -243,6 +299,7 @@ abstract class BaseKeyboard(
                         setOnLongClickListener { _ ->
                             if (def is SpaceKey && AppPrefs.getInstance().keyboard.spaceKeyLongPressBehavior.getValue() == SpaceLongPressBehavior.Trackpad) {
                                 inTrackpadMode = true
+                                swipeEnabled = true
                                 swipeAfterLongPress = true
                                 swipeThresholdY = selectionSwipeThreshold
                                 InputFeedbacks.hapticFeedback(this, true)

@@ -61,6 +61,26 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
     }
 
     inner class Keyboard : ManagedPreferenceCategory(R.string.virtual_keyboard, sharedPreferences) {
+        val glassKeyboard = switch(R.string.glass_keyboard, "glass_keyboard", false)
+        val glassFrostLevel = int(R.string.glass_frost_level, "glass_frost_level", 50, 0, 100, "%", 5) {
+            glassKeyboard.getValue()
+        }
+        val glassSmokeMode = switch(R.string.glass_smoke_mode, "glass_smoke_mode", false) {
+            glassKeyboard.getValue()
+        }
+        val glassElectricPink = switch(R.string.glass_electric_pink, "glass_electric_pink", false) {
+            glassKeyboard.getValue()
+        }
+        val glassDarkMode = switch(R.string.glass_dark_mode, "glass_dark_mode", false) {
+            glassKeyboard.getValue()
+        }
+        val spaceKeyLongPressBehavior = enumList(
+            R.string.space_long_press_behavior,
+            "space_long_press_behavior",
+            SpaceLongPressBehavior.None
+        )
+        val rainbowMicEnabled = switch(R.string.rainbow_mic_enabled, "rainbow_mic_enabled", true)
+
         val hapticOnKeyPress =
             enumList(
                 R.string.button_haptic_feedback,
@@ -159,7 +179,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             false
         )
         val showVoiceInputButton =
-            switch(R.string.show_voice_input_button, "show_voice_input_button", false)
+            switch(R.string.show_voice_input_button, "show_voice_input_button", true)
         val expandKeypressArea =
             switch(R.string.expand_keypress_area, "expand_keypress_area", false)
         val swipeSymbolDirection = enumList(
@@ -176,11 +196,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             "ms",
             10
         )
-        val spaceKeyLongPressBehavior = enumList(
-            R.string.space_long_press_behavior,
-            "space_long_press_behavior",
-            SpaceLongPressBehavior.None
-        )
+
         val spaceSwipeMoveCursor =
             switch(R.string.space_swipe_move_cursor, "space_swipe_move_cursor", true)
         val showLangSwitchKey =
@@ -281,7 +297,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             expandedCandidateGridSpanCountLandscape = secondary
         }
 
-        val glassKeyboard = switch(R.string.glass_keyboard, "glass_keyboard", false)
+
     }
 
     inner class Candidates :

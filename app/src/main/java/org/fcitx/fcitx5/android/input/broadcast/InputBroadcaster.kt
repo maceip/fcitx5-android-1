@@ -22,6 +22,16 @@ class InputBroadcaster : UniqueComponent<InputBroadcaster>(), Dependent, InputBr
 
     private val receivers = ConcurrentLinkedQueue<InputBroadcastReceiver>()
 
+    fun registerReceiver(receiver: InputBroadcastReceiver) {
+        if (!receivers.contains(receiver)) {
+            receivers.add(receiver)
+        }
+    }
+
+    fun unregisterReceiver(receiver: InputBroadcastReceiver) {
+        receivers.remove(receiver)
+    }
+
     override fun handle(scopeEvent: ScopeEvent) {
         when (scopeEvent) {
             is ScopeEvent.DependencyArrivedEvent -> {

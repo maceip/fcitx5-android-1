@@ -14,7 +14,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InlineSuggestion
 import android.view.inputmethod.InlineSuggestionsResponse
 import android.view.inputmethod.InputMethodSubtype
-import android.widget.FrameLayout
+import androidx.constraintlayout.widget.ConstraintLayout
 import android.widget.ViewAnimator
 import android.widget.inline.InlineContentView
 import androidx.annotation.Keep
@@ -74,6 +74,16 @@ import org.mechdancer.dependency.manager.must
 import splitties.bitflags.hasFlag
 import splitties.dimensions.dp
 import splitties.views.backgroundColor
+import splitties.views.dsl.constraintlayout.constraintLayout
+import splitties.views.dsl.constraintlayout.startOfParent
+import splitties.views.dsl.constraintlayout.endOfParent
+import splitties.views.dsl.constraintlayout.centerVertically
+import splitties.views.dsl.constraintlayout.after
+import splitties.views.dsl.constraintlayout.before
+import splitties.views.dsl.constraintlayout.matchConstraints
+import splitties.views.dsl.constraintlayout.startToEndOf
+import splitties.views.dsl.constraintlayout.endToStartOf
+import splitties.views.dsl.constraintlayout.lParams
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
@@ -82,7 +92,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.math.min
 
-class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(),
+class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, ConstraintLayout>(),
     InputBroadcastReceiver {
 
     private val context by manager.context()
@@ -207,27 +217,12 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         voiceInput.startListening()
     }
 
+    var onQuickSettingsClick: (() -> Unit)? = null
+
     private val idleUi: IdleUi by lazy {
         IdleUi(context, theme, popup, commonKeyActionListener).apply {
             menuButton.setOnClickListener {
-                when (idleUi.currentState) {
-                    IdleUi.State.Empty -> {
-                        isToolbarManuallyToggled = !expandToolbarByDefault
-                        evalIdleUiState(fromUser = true)
-                    }
-                    IdleUi.State.Toolbar -> {
-                        isToolbarManuallyToggled = expandToolbarByDefault
-                        evalIdleUiState(fromUser = true)
-                    }
-                    else -> {
-                        isToolbarManuallyToggled = !expandToolbarByDefault
-                        idleUi.updateState(IdleUi.State.Toolbar, fromUser = true)
-                    }
-                }
-                // reset timeout timer (if present) when user switch layout
-                if (clipboardTimeoutJob != null) {
-                    launchClipboardTimeoutJob()
-                }
+                onQuickSettingsClick?.invoke()
             }
             hideKeyboardButton.apply {
                 setOnClickListener(hideKeyboardCallback)
@@ -273,9 +268,9 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                 }
             }
             predictionUi.onSuggestionClick = { suggestion ->
-                service.commitText(suggestion)
-                isPredictionPresent = false
-                evalIdleUiState()
+                val textToCommit = if (suggestion == "For guessing the next word, include emojis.") "😊" else "$suggestion "
+                service.commitText(textToCommit)
+                prediction.onWordSelected(textToCommit)
             }
         }
     }
@@ -342,26 +337,66 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         candidateUi.expandButton.visibility = if (enabled) View.VISIBLE else View.INVISIBLE
     }
 
+    private lateinit var contentAnimator: ViewAnimator
+
     private fun switchUiByState(state: KawaiiBarStateMachine.State) {
         val index = state.ordinal
-        if (view.displayedChild == index) return
-        val new = view.getChildAt(index)
+        if (contentAnimator.displayedChild == index) return
+        val new = contentAnimator.getChildAt(index)
         if (new != titleUi.root) {
             titleUi.setReturnButtonOnClickListener { }
             titleUi.setTitle("")
             titleUi.removeExtension()
         }
-        view.displayedChild = index
+        contentAnimator.displayedChild = index
     }
 
     override val view by lazy {
-        ViewAnimator(context).apply {
+        context.constraintLayout {
             backgroundColor =
                 if (ThemeManager.prefs.keyBorder.getValue()) Color.TRANSPARENT
                 else theme.barColor
-            add(idleUi.root, lParams(matchParent, matchParent))
-            add(candidateUi.root, lParams(matchParent, matchParent))
-            add(titleUi.root, lParams(matchParent, matchParent))
+                
+            val size = context.dp(HEIGHT)
+            val translateAnchor = org.fcitx.fcitx5.android.input.bar.ui.ToolButton(context, R.drawable.ic_translate_24, theme).apply {
+                image.setPadding(0, 0, 0, 0) // Remove default 10dp padding
+                setOnClickListener { translateBar.toggle() }
+            }
+            add(translateAnchor, lParams(size, size) {
+                startOfParent()
+                centerVertically()
+            })
+            
+            add(idleUi.menuButton, lParams(size, size) {
+                startToEndOf(translateAnchor)
+                centerVertically()
+            })
+            
+            val voiceAnchor = org.fcitx.fcitx5.android.input.bar.ui.ToolButton(context, R.drawable.ic_baseline_keyboard_voice_24, theme).apply {
+                image.setPadding(0, 0, 0, 0) // Remove default 10dp padding
+                setOnClickListener(switchToVoiceInputCallback)
+            }
+            add(voiceAnchor, lParams(size, size) {
+                endOfParent()
+                centerVertically()
+            })
+            
+            add(idleUi.hideKeyboardButton, lParams(size, size) {
+                endToStartOf(voiceAnchor)
+                centerVertically()
+            })
+            
+            contentAnimator = ViewAnimator(context).apply {
+                add(idleUi.root, lParams(matchParent, matchParent))
+                add(candidateUi.root, lParams(matchParent, matchParent))
+                add(titleUi.root, lParams(matchParent, matchParent))
+            }
+            
+            add(contentAnimator, lParams(matchConstraints, matchParent) {
+                startToEndOf(idleUi.menuButton)
+                endToStartOf(idleUi.hideKeyboardButton)
+                centerVertically()
+            })
         }
     }
 
@@ -398,11 +433,9 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             idleUi.inlineSuggestionsBar.clear()
         }
         voiceInputSubtype = InputMethodUtil.firstVoiceInput()
-        val shouldShowVoiceInput =
-            showVoiceInputButton && voiceInputSubtype != null && !capFlags.has(CapabilityFlag.Password)
         idleUi.setHideKeyboardIsVoiceInput(
-            shouldShowVoiceInput,
-            if (shouldShowVoiceInput) switchToVoiceInputCallback else hideKeyboardCallback
+            false,
+            hideKeyboardCallback
         )
         evalIdleUiState()
     }

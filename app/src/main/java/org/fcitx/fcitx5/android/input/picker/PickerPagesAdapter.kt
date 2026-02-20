@@ -13,7 +13,10 @@ import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.keyboard.KeyActionListener
 import org.fcitx.fcitx5.android.input.popup.PopupActionListener
 
+import android.content.Context
+
 class PickerPagesAdapter(
+    val context: Context,
     val theme: Theme,
     private val keyActionListener: KeyActionListener,
     private val popupActionListener: PopupActionListener,
@@ -23,6 +26,8 @@ class PickerPagesAdapter(
     private val bordered: Boolean = false,
     private val isEmoji: Boolean = false
 ) : RecyclerView.Adapter<PickerPagesAdapter.ViewHolder>() {
+
+    val isWideScreen = context.resources.configuration.screenWidthDp >= 600
 
     class ViewHolder(val ui: PickerPageUi) : RecyclerView.ViewHolder(ui.root)
 
@@ -49,7 +54,8 @@ class PickerPagesAdapter(
             } else {
                 arr.toList()
             }
-            val chunks = list.chunked(density.pageSize)
+            val pageSize = density.pageSize(isWideScreen)
+            val chunks = list.chunked(pageSize)
             categories.add(cat to IntRange(pages.size, pages.size + chunks.size - 1))
             pages.addAll(chunks)
         }
@@ -72,7 +78,7 @@ class PickerPagesAdapter(
         buildCategories(rawData, knowGraphOnly)
     }
 
-    private val recentlyUsed = RecentlyUsed(recentlyUsedFileName, density.pageSize)
+    private val recentlyUsed = RecentlyUsed(recentlyUsedFileName, density.pageSize(isWideScreen))
 
     fun insertRecent(text: String) {
         if (text.length == 1 && text[0].code.let { it in Digit || it in FullWidthDigit }) return
@@ -98,7 +104,7 @@ class PickerPagesAdapter(
     override fun getItemCount() = pages.size
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        return ViewHolder(PickerPageUi(parent.context, theme, density, bordered))
+        return ViewHolder(PickerPageUi(parent.context, theme, density, bordered, isWideScreen))
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {

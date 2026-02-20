@@ -13,6 +13,7 @@ import android.view.animation.LinearInterpolator
 import androidx.annotation.RequiresApi
 import splitties.dimensions.dp
 import kotlin.random.Random
+import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 
 /**
  * AlexMack Glass Background Effect.
@@ -54,6 +55,8 @@ class AlexMackBackground(context: Context) : View(context) {
         uniform shader currentBg;
         uniform shader targetBg;
         uniform float transition;
+        uniform float frost_level; // (0.0 no frost, 1.0 max frost)
+        uniform float dark_mode;
 
         // ── Standard Perlin-ish Noise ──
         float2 hash(float2 p) {
@@ -106,16 +109,22 @@ class AlexMackBackground(context: Context) : View(context) {
             }
 
             // 2. Refract backgrounds
-            float2 bgUv = fragCoord / resolution;
+            float2 bgUv = fragCoord; // Start with screen coordinate
             if (hit) {
                 vec3 n = getNormal(rp);
-                bgUv += n.xy * 0.06;
+                // Calculate refraction direction based on normal and frost level
+                // The 0.06 was a fixed refraction amount, now it's scaled by frost_level
+                float2 refractDir = n.xy; // Simplified refraction direction for 2D offset
+                bgUv += refractDir * (50.0 * frost_level); // Apply frost_level to the refraction amount
             }
             // Vertical flute ribs
             bgUv.x += sin(fragCoord.x * 0.25) * 0.0015;
 
-            half4 c1 = currentBg.eval(bgUv * resolution);
-            half4 c2 = targetBg.eval(bgUv * resolution);
+            // Constrain coordinates to standard screen space bounds
+            bgUv = clamp(bgUv, vec2(0.0), resolution);
+
+            half4 c1 = currentBg.eval(bgUv);
+            half4 c2 = targetBg.eval(bgUv);
             half4 bg = mix(c1, c2, transition);
 
             // 3. Shading
@@ -126,10 +135,15 @@ class AlexMackBackground(context: Context) : View(context) {
                 float spec = pow(max(0.0, dot(reflect(-lightDir, n), vec3(0.0, 0.0, 1.0))), 48.0);
 
                 // AlexMack Emerald Highlight
-                finalColor += vec3(0.3, 0.85, 0.45) * spec * 0.5;
-                finalColor = mix(finalColor, vec3(0.0, 0.15, 0.04), 0.15);
+                vec3 highlight = mix(vec3(0.3, 0.85, 0.45), vec3(0.15, 0.35, 0.9), dark_mode);
+                finalColor += highlight * spec * 0.5;
+                vec3 shadow = mix(vec3(0.0, 0.15, 0.04), vec3(0.0, 0.01, 0.03), dark_mode);
+                finalColor = mix(finalColor, shadow, 0.15);
             } else {
                 finalColor *= 0.98 + 0.02 * sin(fragCoord.x * 0.4);
+            }
+            if (dark_mode > 0.5) {
+                finalColor *= 0.25; // Darken global scene
             }
 
             return half4(finalColor, 1.0);
@@ -259,6 +273,13 @@ class AlexMackBackground(context: Context) : View(context) {
         shader.setFloatUniform("resolution", width.toFloat(), height.toFloat())
         shader.setFloatUniform("time", time)
         shader.setFloatUniform("transition", transitionProgress)
+
+        // Pass frost level scaled to a 0.0 -> 1.0 float (0-100 from prefs -> 0.0-1.0 for shader)
+        val frostValue = AppPrefs.getInstance().keyboard.glassFrostLevel.getValue() / 100f
+        shader.setFloatUniform("frost_level", frostValue)
+        
+        val darkModeValue = if (AppPrefs.getInstance().keyboard.glassDarkMode.getValue()) 1.0f else 0.0f
+        shader.setFloatUniform("dark_mode", darkModeValue)
 
         shader.setInputShader("currentBg", BitmapShader(current, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP))
         shader.setInputShader("targetBg", BitmapShader(target, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP))

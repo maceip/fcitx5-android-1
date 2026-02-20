@@ -68,21 +68,21 @@ class ThemeFragment : Fragment() {
 
         viewPager = ViewPager2(this).apply {
             adapter = object : FragmentStateAdapter(this@ThemeFragment) {
-                override fun getItemCount() = 2
+                override fun getItemCount() = 3
                 override fun createFragment(position: Int): Fragment = when (position) {
                     0 -> ThemeListFragment()
-                    else -> ThemeSettingsFragment()
+                    1 -> ThemeSettingsFragment()
+                    else -> LiquidGlassSettingsFragment()
                 }
             }
         }
 
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            tab.text = getString(
-                when (position) {
-                    0 -> R.string.theme
-                    else -> R.string.configure
-                }
-            )
+            tab.text = when (position) {
+                0 -> getString(R.string.theme)
+                1 -> getString(R.string.configure)
+                else -> "Liquid Glass"
+            }
         }.attach()
 
         val previewWrapper = constraintLayout {

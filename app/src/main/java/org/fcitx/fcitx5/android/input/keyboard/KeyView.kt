@@ -125,39 +125,57 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
                 Variant.Normal, Variant.AltForeground -> theme.keyBackgroundColor
                 Variant.Alternative -> theme.altKeyBackgroundColor
                 Variant.Accent -> theme.accentKeyBackgroundColor
-            }.let { base ->
-                if (glass) {
-                    when (def.variant) {
-                        Variant.Accent -> 0x664CAF50.toInt() // Transparent Green for accent
-                        else -> 0x3381C784.toInt() // Very Transparent Light Green for normal
-                    }
-                } else base
             }
+            
             val borderOrShadowWidth = dp(1)
-            // background: key border
-            appearanceView.background = if (borderStroke) borderedKeyBackgroundDrawable(
-                bkgColor, if (glass) 0x22000000 else theme.keyShadowColor,
-                radius, borderOrShadowWidth, hMargin, vMargin
-            ) else shadowedKeyBackgroundDrawable(
-                bkgColor, if (glass) 0x22000000 else theme.keyShadowColor,
-                radius, borderOrShadowWidth, hMargin, vMargin
-            )
+            
+            // background: key border or glass bubble
+            appearanceView.background = if (glass) {
+                val smokeMode = AppPrefs.getInstance().keyboard.glassSmokeMode.getValue()
+                glassBubbleBackgroundDrawable(smokeMode, radius, hMargin, vMargin)
+            } else if (borderStroke) {
+                borderedKeyBackgroundDrawable(
+                    bkgColor, theme.keyShadowColor,
+                    radius, borderOrShadowWidth, hMargin, vMargin
+                )
+            } else {
+                shadowedKeyBackgroundDrawable(
+                    bkgColor, theme.keyShadowColor,
+                    radius, borderOrShadowWidth, hMargin, vMargin
+                )
+            }
             // foreground: press highlight or ripple
-            setupPressHighlight()
+            setupPressHighlight(glass)
         } else {
             // normal press highlight for keys without special background
             // special background is handled in `onSizeChanged()`
             if (def.border != Border.Special) {
-                setupPressHighlight()
+                val glass = AppPrefs.getInstance().keyboard.glassKeyboard.getValue()
+                setupPressHighlight(glass)
             }
         }
         add(appearanceView, lParams(matchParent, matchParent))
     }
 
-    private fun setupPressHighlight(mask: Drawable? = null) {
+    private fun setupPressHighlight(glass: Boolean = false, mask: Drawable? = null) {
+        if (glass) {
+            val pink = AppPrefs.getInstance().keyboard.glassElectricPink.getValue()
+            val pressColor = if (pink) Color.parseColor("#FF007F") else Color.parseColor("#00E5FF")
+            
+            appearanceView.foreground = StateListDrawable().apply {
+                addState(
+                    intArrayOf(android.R.attr.state_pressed),
+                    glassBubbleLedHighlightDrawable(pressColor, radius, hMargin, vMargin)
+                )
+            }
+            return
+        }
+
+        val pressColor = theme.keyPressHighlightColor
+        
         appearanceView.foreground = if (rippled) {
             RippleDrawable(
-                ColorStateList.valueOf(theme.keyPressHighlightColor), null,
+                ColorStateList.valueOf(pressColor), null,
                 // ripple should be masked with an opaque color
                 mask ?: highlightMaskDrawable(Color.WHITE)
             )
@@ -176,7 +194,7 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
                 addState(
                     intArrayOf(android.R.attr.state_pressed),
                     // use mask drawable as highlight directly
-                    mask ?: highlightMaskDrawable(theme.keyPressHighlightColor)
+                    mask ?: highlightMaskDrawable(pressColor)
                 )
             }
         }
@@ -186,6 +204,8 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
         return if (bordered) insetRadiusDrawable(hMargin, vMargin, radius, color)
         else InsetDrawable(ColorDrawable(color), hMargin, vMargin, hMargin, vMargin)
     }
+
+
 
     override fun setEnabled(enabled: Boolean) {
         super.setEnabled(enabled)
@@ -233,7 +253,7 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
                 appearanceView.padding = 0
                 // apply press highlight for background area
                 setupPressHighlight(
-                    insetRadiusDrawable(
+                    mask = insetRadiusDrawable(
                         hInset, vInset, bkgRadius,
                         if (rippled) Color.WHITE else theme.keyPressHighlightColor
                     )
@@ -248,7 +268,7 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
                 )
                 appearanceView.padding = 0
                 setupPressHighlight(
-                    insetOvalDrawable(
+                    mask = insetOvalDrawable(
                         hInset, vInset, if (rippled) Color.WHITE else theme.keyPressHighlightColor
                     )
                 )
@@ -401,11 +421,18 @@ class ImageKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Image) :
 private fun ImageView.configure(theme: Theme, @DrawableRes src: Int, variant: Variant) = apply {
     isClickable = false
     isFocusable = false
+    
+    val glass = AppPrefs.getInstance().keyboard.glassKeyboard.getValue()
+    
     imageTintList = ColorStateList.valueOf(
-        when (variant) {
-            Variant.Normal -> theme.keyTextColor
-            Variant.AltForeground, Variant.Alternative -> theme.altKeyTextColor
-            Variant.Accent -> theme.accentKeyTextColor
+        if (glass && variant == Variant.Accent) {
+            theme.keyTextColor
+        } else {
+            when (variant) {
+                Variant.Normal -> theme.keyTextColor
+                Variant.AltForeground, Variant.Alternative -> theme.altKeyTextColor
+                Variant.Accent -> theme.accentKeyTextColor
+            }
         }
     )
     imageResource = src

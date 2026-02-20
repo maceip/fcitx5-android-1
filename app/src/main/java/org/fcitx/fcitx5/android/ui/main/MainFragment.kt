@@ -58,6 +58,11 @@ class MainFragment : PaddingPreferenceFragment() {
                     R.drawable.ic_baseline_extension_24,
                     SettingsRoute.AddonList
                 )
+                addDestinationPreference(
+                    R.string.modern_interface,
+                    R.drawable.ic_baseline_tune_24,
+                    SettingsRoute.ModernSettings
+                )
             }
             addCategory("Android") {
                 addDestinationPreference(

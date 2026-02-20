@@ -82,6 +82,7 @@ class InputView(
     private val themedContext = context.withTheme(R.style.Theme_InputViewTheme)
 
     private val glassKeyboard by keyboardPrefs.glassKeyboard
+    private val rainbowMicEnabled by keyboardPrefs.rainbowMicEnabled
 
     private val alexMackBackground = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         AlexMackBackground(themedContext).apply {
@@ -150,6 +151,50 @@ class InputView(
         scope += kawaiiBar
         scope += horizontalCandidate
         broadcaster.onScopeSetupFinished(scope)
+    }
+
+    private var predictiveBackCallback: Any? = null
+
+    private fun updateBackCallback() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val dispatcher = keyboardView.findOnBackInvokedDispatcher() ?: return
+            val shouldIntercept = !windowManager.isAttached(keyboardWindow)
+            
+            if (shouldIntercept && predictiveBackCallback == null) {
+                val callback = object : android.window.OnBackAnimationCallback {
+                    override fun onBackInvoked() {
+                        windowManager.attachWindow(keyboardWindow)
+                        windowManager.view.scaleX = 1f
+                        windowManager.view.scaleY = 1f
+                        windowManager.view.translationX = 0f
+                    }
+                    override fun onBackProgressed(backEvent: android.window.BackEvent) {
+                        val progress = backEvent.progress
+                        val scale = 1f - (0.15f * progress)
+                        windowManager.view.scaleX = scale
+                        windowManager.view.scaleY = scale
+                        // Slide slightly in the direction of the swipe
+                        val maxTranslation = 50f
+                        val direction = if (backEvent.swipeEdge == android.window.BackEvent.EDGE_LEFT) 1 else -1
+                        windowManager.view.translationX = direction * maxTranslation * progress
+                    }
+                    override fun onBackCancelled() {
+                        windowManager.view.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .translationX(0f)
+                            .setDuration(120)
+                            .start()
+                    }
+                    override fun onBackStarted(backEvent: android.window.BackEvent) {}
+                }
+                predictiveBackCallback = callback
+                dispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+            } else if (!shouldIntercept && predictiveBackCallback != null) {
+                dispatcher.unregisterOnBackInvokedCallback(predictiveBackCallback as android.window.OnBackAnimationCallback)
+                predictiveBackCallback = null
+            }
+        }
     }
 
     private val focusChangeResetKeyboard by keyboardPrefs.focusChangeResetKeyboard
@@ -235,12 +280,42 @@ class InputView(
         val rainbowMic = RainbowMicView(themedContext, theme).apply {
             visibility = View.GONE
         }
-        voiceInput.onStartListening = { rainbowMic.startAnimation() }
+        voiceInput.onStartListening = { if (rainbowMicEnabled) rainbowMic.startAnimation() }
         voiceInput.onStopListening = { rainbowMic.stopAnimation() }
 
         val swipeTrailView = SwipeTrailView(themedContext, theme)
 
+        val quickSettings = QuickSettingsUi(
+            themedContext,
+            theme,
+            onThemeClick = { org.fcitx.fcitx5.android.utils.AppUtil.launchMainToThemeList(themedContext) },
+            onClipboardClick = { /* TODO implement clipboard toggle or picker */ },
+            onSettingsClick = { org.fcitx.fcitx5.android.utils.AppUtil.launchMain(themedContext) },
+            onCloseClick = { /* handled later */ }
+        )
+        quickSettings.root.visibility = View.GONE
+        quickSettings.onCloseClick = {
+            quickSettings.root.visibility = View.GONE
+            keyboardView.visibility = View.VISIBLE
+        }
+
+        kawaiiBar.onQuickSettingsClick = {
+            keyboardView.visibility = View.GONE
+            quickSettings.root.visibility = View.VISIBLE
+        }
+
+
+
         broadcaster.onImeUpdate(fcitx.runImmediately { inputMethodEntryCached })
+
+        broadcaster.registerReceiver(object : org.fcitx.fcitx5.android.input.broadcast.InputBroadcastReceiver {
+            override fun onWindowAttached(window: org.fcitx.fcitx5.android.input.wm.InputWindow) {
+                keyboardView.post { updateBackCallback() }
+            }
+            override fun onWindowDetached(window: org.fcitx.fcitx5.android.input.wm.InputWindow) {
+                keyboardView.post { updateBackCallback() }
+            }
+        })
 
         customBackground.imageDrawable = theme.backgroundDrawable(ThemeManager.prefs.keyBorder.getValue())
 
@@ -277,10 +352,21 @@ class InputView(
                  * set start and end constrain in [updateKeyboardSize]
                  */
             })
+            add(rainbowMic, lParams(dp(100), dp(100)) {
+                centerHorizontally()
+                centerVertically()
+            })
+
             add(bottomPaddingSpace, lParams {
                 startToEndOf(leftPaddingSpace)
                 endToStartOf(rightPaddingSpace)
                 bottomOfParent()
+            })
+            add(quickSettings.root, lParams {
+                below(kawaiiBar.view)
+                above(bottomPaddingSpace)
+                startToEndOf(leftPaddingSpace)
+                endToStartOf(rightPaddingSpace)
             })
             add(swipeTrailView, lParams(matchParent, matchParent))
         }
@@ -308,12 +394,7 @@ class InputView(
             centerVertically()
             centerHorizontally()
         })
-        add(rainbowMic, lParams(dp(64), dp(64)) {
-            bottomOfParent()
-            endOfParent()
-            bottomMargin = dp(60)
-            rightMargin = dp(16)
-        })
+
 
         keyboardPrefs.registerOnChangeListener(onKeyboardSizeChangeListener)
     }

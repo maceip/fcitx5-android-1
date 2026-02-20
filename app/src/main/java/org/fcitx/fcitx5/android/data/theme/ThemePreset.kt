@@ -304,4 +304,30 @@ object ThemePreset {
         genericActiveForegroundColor = 0xffffffff
     )
 
+    val AlexMack = Theme.Builtin(
+        name = "AlexMack",
+        isDark = true,
+        backgroundColor = 0x00000000,
+        barColor = 0x8021272b,
+        keyboardColor = 0x00000000,
+        keyBackgroundColor = 0x33ffffff,
+        keyTextColor = 0xffffffff,
+        candidateTextColor = 0xffffffff,
+        candidateLabelColor = 0xffffffff,
+        candidateCommentColor = 0xffadb1b3,
+        altKeyBackgroundColor = 0x1affffff,
+        altKeyTextColor = 0xffadb1b3,
+        accentKeyBackgroundColor = 0xff4caf50,
+        accentKeyTextColor = 0xffffffff,
+        keyPressHighlightColor = 0x33ffffff,
+        keyShadowColor = 0x00000000,
+        popupBackgroundColor = 0xcc3c474c,
+        popupTextColor = 0xffffffff,
+        spaceBarColor = 0x33ffffff,
+        dividerColor = 0x1fffffff,
+        clipboardEntryColor = 0xff404a50,
+        genericActiveBackgroundColor = 0xff4db6ac,
+        genericActiveForegroundColor = 0xffffffff
+    )
+
 }

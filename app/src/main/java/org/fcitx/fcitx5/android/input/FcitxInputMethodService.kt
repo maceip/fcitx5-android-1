@@ -1,3 +1,4 @@
+
 /*
  * SPDX-License-Identifier: LGPL-2.1-or-later
  * SPDX-FileCopyrightText: Copyright 2021-2026 Fcitx5 for Android Contributors
@@ -100,6 +101,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private lateinit var contentView: FrameLayout
     private var inputView: InputView? = null
     private var candidatesView: CandidatesView? = null
+
+    var focusedEditText: android.widget.EditText? = null
 
     private val navbarMgr = NavigationBarManager()
     private val inputDeviceMgr = InputDeviceManager { isVirtualKeyboard ->
@@ -218,6 +221,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             }
         }
         super.onCreate()
+        window.window?.setWindowAnimations(R.style.Animation_InputMethod)
         decorView = window.window!!.decorView
         contentView = decorView.findViewById(android.R.id.content)
         lastKnownConfig = resources.configuration
@@ -259,6 +263,10 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                                     keyEvent.scanCode, keyEvent.flags, keyEvent.source
                                 )
                             )
+                            return@event
+                        }
+                        focusedEditText?.let {
+                            it.dispatchKeyEvent(keyEvent)
                             return@event
                         }
                         currentInputConnection?.sendKeyEvent(keyEvent)
@@ -341,6 +349,16 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleBackspaceKey() {
+        focusedEditText?.let {
+            val start = it.selectionStart
+            val end = it.selectionEnd
+            if (start != end) {
+                it.text.delete(start, end)
+            } else if (start > 0) {
+                it.text.delete(start - 1, start)
+            }
+            return
+        }
         val lastSelection = selection.latest
         if (lastSelection.isNotEmpty()) {
             selection.predict(lastSelection.start)
@@ -391,7 +409,35 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
     }
 
+    fun performNextField() {
+        currentInputConnection?.performEditorAction(EditorInfo.IME_ACTION_NEXT) ?: run {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
+        }
+    }
+
+    fun performPrevField() {
+        currentInputConnection?.performEditorAction(EditorInfo.IME_ACTION_PREVIOUS) ?: run {
+            sendCombinationKeyEvents(KeyEvent.KEYCODE_TAB, shift = true)
+        }
+    }
+
     private fun handleArrowKey(keyCode: Int) {
+        focusedEditText?.let {
+            val start = it.selectionStart
+            val end = it.selectionEnd
+            val textLen = it.text.length
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    val target = if (start == end) (start - 1).coerceAtLeast(0) else start
+                    it.setSelection(target, target)
+                }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    val target = if (start == end) (end + 1).coerceAtMost(textLen) else end
+                    it.setSelection(target, target)
+                }
+            }
+            return
+        }
         if (currentInputEditorInfo.inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_NULL) {
             sendDownUpKeyEvents(keyCode)
             return
@@ -407,6 +453,12 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     fun commitText(text: String, cursor: Int = -1) {
+        focusedEditText?.let {
+            val start = it.selectionStart
+            val end = it.selectionEnd
+            it.text.replace(maxOf(0, start), maxOf(0, end), text)
+            return
+        }
         val ic = currentInputConnection ?: return
         // when composing text equals commit content, finish composing text as-is
         if (composing.isNotEmpty() && composingText.toString() == text) {
@@ -475,35 +527,41 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun sendDownKeyEvent(eventTime: Long, keyEventCode: Int, metaState: Int = 0) {
-        currentInputConnection?.sendKeyEvent(
-            KeyEvent(
-                eventTime,
-                eventTime,
-                KeyEvent.ACTION_DOWN,
-                keyEventCode,
-                0,
-                metaState,
-                KeyCharacterMap.VIRTUAL_KEYBOARD,
-                ScancodeMapping.keyCodeToScancode(keyEventCode),
-                KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE
-            )
+        val event = KeyEvent(
+            eventTime,
+            eventTime,
+            KeyEvent.ACTION_DOWN,
+            keyEventCode,
+            0,
+            metaState,
+            KeyCharacterMap.VIRTUAL_KEYBOARD,
+            ScancodeMapping.keyCodeToScancode(keyEventCode),
+            KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE
         )
+        focusedEditText?.let {
+            it.dispatchKeyEvent(event)
+            return
+        }
+        currentInputConnection?.sendKeyEvent(event)
     }
 
     private fun sendUpKeyEvent(eventTime: Long, keyEventCode: Int, metaState: Int = 0) {
-        currentInputConnection?.sendKeyEvent(
-            KeyEvent(
-                eventTime,
-                SystemClock.uptimeMillis(),
-                KeyEvent.ACTION_UP,
-                keyEventCode,
-                0,
-                metaState,
-                KeyCharacterMap.VIRTUAL_KEYBOARD,
-                ScancodeMapping.keyCodeToScancode(keyEventCode),
-                KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE
-            )
+        val event = KeyEvent(
+            eventTime,
+            SystemClock.uptimeMillis(),
+            KeyEvent.ACTION_UP,
+            keyEventCode,
+            0,
+            metaState,
+            KeyCharacterMap.VIRTUAL_KEYBOARD,
+            ScancodeMapping.keyCodeToScancode(keyEventCode),
+            KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE
         )
+        focusedEditText?.let {
+            it.dispatchKeyEvent(event)
+            return
+        }
+        currentInputConnection?.sendKeyEvent(event)
     }
 
     fun deleteSelection() {
